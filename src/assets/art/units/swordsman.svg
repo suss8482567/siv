@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Swordsman">
+  <title>Swordsman — straight steel sword upright with oxblood grip</title>
+  <!-- Gilded Hex Seal frame (canonical, see docs/ART_STYLE.md) -->
+  <polygon points="32,2 58,17 58,47 32,62 6,47 6,17" fill="#1D1A14" stroke="#C8A24A" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="32,5.5 55,18.75 55,45.25 32,58.5 9,45.25 9,18.75" fill="none" stroke="#3A3325" stroke-width="1"/>
+  <circle cx="32" cy="32" r="22.7" fill="none" stroke="#B3A685" stroke-width="1" stroke-dasharray="1 3" opacity=".5"/>
+
+  <!-- ground shadow -->
+  <ellipse cx="32" cy="54.5" rx="10" ry="2" fill="#12100D" opacity=".45"/>
+
+  <!-- blade -->
+  <path d="M32 11 L34.6 16 L34.6 36.5 L29.4 36.5 L29.4 16 Z"
+        fill="#B9B3A4" stroke="#12100D" stroke-width="1.6" stroke-linejoin="round"/>
+  <path d="M32 17 L32 34" stroke="#8F887A" stroke-width="1.2" opacity=".9"/>
+
+  <!-- crossguard -->
+  <rect x="23.5" y="36.5" width="17" height="3.6" rx="1.2"
+        fill="#6E5433" stroke="#12100D" stroke-width="1.4"/>
+
+  <!-- grip -->
+  <rect x="30.2" y="40.1" width="3.6" height="9"
+        fill="#A04030" stroke="#12100D" stroke-width="1.2"/>
+
+  <!-- gold pommel -->
+  <circle cx="32" cy="51" r="2.8" fill="#C8A24A" stroke="#12100D" stroke-width="1.2"/>
+</svg>

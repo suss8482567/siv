@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Settler">
+  <title>Settler — covered wagon flying a claim-flag</title>
+  <!-- Gilded Hex Seal frame (canonical, see docs/ART_STYLE.md) -->
+  <polygon points="32,2 58,17 58,47 32,62 6,47 6,17" fill="#1D1A14" stroke="#C8A24A" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="32,5.5 55,18.75 55,45.25 32,58.5 9,45.25 9,18.75" fill="none" stroke="#3A3325" stroke-width="1"/>
+  <circle cx="32" cy="32" r="22.7" fill="none" stroke="#B3A685" stroke-width="1" stroke-dasharray="1 3" opacity=".5"/>
+
+  <!-- ground shadow -->
+  <ellipse cx="32" cy="53.5" rx="15" ry="2.4" fill="#12100D" opacity=".45"/>
+
+  <!-- claim flag planted through the canvas -->
+  <path d="M32 21 V10.5" stroke="#6E5433" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M32.8 11 H41.5 L38 14.2 L41.5 17.4 H32.8 Z" fill="#C98F3B" stroke="#12100D" stroke-width="1"/>
+
+  <!-- canvas top -->
+  <path d="M14.5 33.5 Q14.5 22.5 22.5 21.5 H41.5 Q49.5 22.5 49.5 33.5 Z"
+        fill="#E8DCC0" stroke="#12100D" stroke-width="1.6"/>
+  <!-- canvas folds + sag -->
+  <path d="M24.5 22 Q23.5 27.5 23.5 33.3" fill="none" stroke="#B3A685" stroke-width="1"/>
+  <path d="M39.5 22 Q40.5 27.5 40.5 33.3" fill="none" stroke="#B3A685" stroke-width="1"/>
+  <path d="M14.8 30 Q32 26.5 49.2 30" fill="none" stroke="#CFC0A0" stroke-width="1"/>
+  <!-- gold trim where canvas meets bed -->
+  <path d="M15.5 33.5 H48.5" stroke="#C8A24A" stroke-width="1.4"/>
+
+  <!-- wagon bed -->
+  <rect x="13.5" y="33.5" width="37" height="8.5" rx="1.2" fill="#6E5433" stroke="#12100D" stroke-width="1.6"/>
+  <path d="M16 37.7 H48" stroke="#4A3A22" stroke-width="1" opacity=".7"/>
+
+  <!-- hitching shaft + ring -->
+  <path d="M50.5 40 L57 46.5" stroke="#6E5433" stroke-width="2.2" stroke-linecap="round"/>
+  <circle cx="57.8" cy="47.4" r="1.7" fill="none" stroke="#C8A24A" stroke-width="1.4"/>
+
+  <!-- wheels -->
+  <g>
+    <circle cx="23" cy="47.5" r="6.4" fill="#6E5433" stroke="#12100D" stroke-width="1.6"/>
+    <path d="M23 42 V53 M18.4 44.6 L27.6 50.4 M18.4 50.4 L27.6 44.6" stroke="#B3A685" stroke-width="1"/>
+    <circle cx="23" cy="47.5" r="1.9" fill="#C8A24A" stroke="#12100D" stroke-width="1"/>
+    <circle cx="43" cy="47.5" r="6.4" fill="#6E5433" stroke="#12100D" stroke-width="1.6"/>
+    <path d="M43 42 V53 M38.4 44.6 L47.6 50.4 M38.4 50.4 L47.6 44.6" stroke="#B3A685" stroke-width="1"/>
+    <circle cx="43" cy="47.5" r="1.9" fill="#C8A24A" stroke="#12100D" stroke-width="1"/>
+  </g>
+</svg>

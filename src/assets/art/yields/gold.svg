@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Gold">
+  <title>Gold — stack of struck coins</title>
+  <!-- Gilded Hex Seal frame (canonical, see docs/ART_STYLE.md) -->
+  <polygon points="32,2 58,17 58,47 32,62 6,47 6,17" fill="#1D1A14" stroke="#C8A24A" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="32,5.5 55,18.75 55,45.25 32,58.5 9,45.25 9,18.75" fill="none" stroke="#3A3325" stroke-width="1"/>
+  <circle cx="32" cy="32" r="22.7" fill="none" stroke="#B3A685" stroke-width="1" stroke-dasharray="1 3" opacity=".5"/>
+
+  <!-- ground shadow -->
+  <ellipse cx="33" cy="51.5" rx="15" ry="2.6" fill="#12100D" opacity=".45"/>
+
+  <!-- standing coin with a milled face (leans on the stack) -->
+  <g transform="rotate(10 46 40)">
+    <circle cx="46" cy="40" r="8.4" fill="#E0B45C" stroke="#12100D" stroke-width="1.7"/>
+    <circle cx="46" cy="40" r="5.8" fill="none" stroke="#96681C" stroke-width="1" stroke-dasharray="1.4 2.2"/>
+    <path d="M43.4 42.6 Q46 37.4 48.6 42.6" fill="none" stroke="#96681C" stroke-width="1.1"/>
+  </g>
+
+  <!-- coin stack: side + face per coin -->
+  <g stroke="#12100D" stroke-width="1.5">
+    <path d="M21 44.5 V47.5 A11 3.6 0 0 0 43 47.5 V44.5" fill="#A67F2E"/>
+    <ellipse cx="32" cy="44.5" rx="11" ry="3.6" fill="#E0B45C"/>
+
+    <path d="M21 39 V42 A11 3.6 0 0 0 43 42 V39" fill="#A67F2E"/>
+    <ellipse cx="32" cy="39" rx="11" ry="3.6" fill="#E0B45C"/>
+
+    <path d="M21 33.5 V36.5 A11 3.6 0 0 0 43 36.5 V33.5" fill="#A67F2E"/>
+    <ellipse cx="32" cy="33.5" rx="11" ry="3.6" fill="#E0B45C"/>
+  </g>
+  <!-- embossed laurel on the top face -->
+  <path d="M26.8 33.2 Q29.4 31 32 33.2 Q34.6 31 37.2 33.2" fill="none" stroke="#96681C" stroke-width="1.1"/>
+  <path d="M32 35.4 V31.6" stroke="#96681C" stroke-width="1.1"/>
+
+  <!-- sparkle -->
+  <path d="M41.5 19 L42.6 22.4 L46 23.5 L42.6 24.6 L41.5 28 L40.4 24.6 L37 23.5 L40.4 22.4 Z"
+        fill="#F1D79A" stroke="#12100D" stroke-width=".7"/>
+</svg>
