@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Shi Hall">
+  <title>Shi Hall</title>
+  <polygon points="32,2 58,17 58,47 32,62 6,47 6,17" fill="#1D1A14" stroke="#C8A24A" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="32,5.5 55,18.75 55,45.25 32,58.5 9,45.25 9,18.75" fill="none" stroke="#3A3325" stroke-width="1"/>
+  <circle cx="32" cy="32" r="22.7" fill="none" stroke="#B3A685" stroke-width="1" stroke-dasharray="1 3" opacity=".5"/>
+  <path d="M24 46 L24 34 L40 34 L40 46 Z" fill="#6E5433" stroke="#12100D" stroke-width="1.2"/>
+  <path d="M32 30 L32 22 L40 22 L40 30 Z" fill="#6E5433" stroke="#12100D" stroke-width="1"/>
+  <path d="M14 34 C22 30 26 30 32 30 C38 30 42 30 50 34 C42 32 38 32 32 32 C26 32 22 32 14 34 Z" fill="#A04030" stroke="#12100D" stroke-width="1" stroke-linejoin="round"/>
+  <circle cx="32" cy="19" r="2.2" fill="#E0B45C" stroke="#12100D" stroke-width="0.8"/>
+</svg>

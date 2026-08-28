@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Mongolia">
+  <title>Mongolia — composite recurve bow</title>
+  <!-- Gilded Hex Seal frame (canonical, see docs/ART_STYLE.md) -->
+  <polygon points="32,2 58,17 58,47 32,62 6,47 6,17" fill="#1D1A14" stroke="#C8A24A" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="32,5.5 55,18.75 55,45.25 32,58.5 9,45.25 9,18.75" fill="none" stroke="#3A3325" stroke-width="1"/>
+  <circle cx="32" cy="32" r="22.7" fill="none" stroke="#B3A685" stroke-width="1" stroke-dasharray="1 3" opacity=".5"/>
+
+  <!-- bow spine with recurved tips -->
+  <path d="M25.5 11.5 L22 14.5 Q14 24 15.5 33 Q17 42 24 49.5 L27.5 52.5"
+        fill="none" stroke="#8A6B45" stroke-width="3.4" stroke-linecap="round"/>
+  <!-- sinew backing -->
+  <path d="M22.8 16.5 Q16.2 24.5 17.4 32.8 Q18.6 40.8 24.6 47.4"
+        fill="none" stroke="#4A3A22" stroke-width="1" opacity=".8"/>
+
+  <!-- string -->
+  <path d="M25.5 11.5 Q29.5 32 27.5 52.5" fill="none" stroke="#B3A685" stroke-width="1"/>
+
+  <!-- nocked arrow -->
+  <path d="M29 31.7 L46.5 30.9" stroke="#6E5433" stroke-width="1.6" stroke-linecap="round"/>
+  <polygon points="46.2,28.6 51.8,30.8 46.5,33.4" fill="#C08428" stroke="#12100D" stroke-width="1"/>
+  <g fill="#7FA3A8" stroke="#12100D" stroke-width=".8">
+    <path d="M29.8 29.9 L34.5 28.9 L34.5 30.7 L29.8 31.5 Z"/>
+    <path d="M29.8 32 L34.5 31 L34.5 32.8 L29.8 33.8 Z"/>
+  </g>
+
+  <!-- gold grip wrap -->
+  <path d="M16.4 29.6 Q17.4 32.6 17.9 35.2" fill="none" stroke="#C8A24A" stroke-width="3" stroke-linecap="round"/>
+</svg>

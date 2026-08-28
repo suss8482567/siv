@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="China">
+  <title>China — two-tier pagoda</title>
+  <!-- Gilded Hex Seal frame (canonical, see docs/ART_STYLE.md) -->
+  <polygon points="32,2 58,17 58,47 32,62 6,47 6,17" fill="#1D1A14" stroke="#C8A24A" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="32,5.5 55,18.75 55,45.25 32,58.5 9,45.25 9,18.75" fill="none" stroke="#3A3325" stroke-width="1"/>
+  <circle cx="32" cy="32" r="22.7" fill="none" stroke="#B3A685" stroke-width="1" stroke-dasharray="1 3" opacity=".5"/>
+
+  <!-- finial (gold) -->
+  <path d="M32 24.5 V17.5" stroke="#12100D" stroke-width="1.5"/>
+  <circle cx="32" cy="20.3" r="1.6" fill="#C8A24A" stroke="#12100D" stroke-width=".8"/>
+  <circle cx="32" cy="16.9" r="1.2" fill="#C8A24A" stroke="#12100D" stroke-width=".8"/>
+
+  <!-- upper roof -->
+  <path d="M19 29.3 Q25.5 27 32 27 Q38.5 27 45 29.3 Q43 25.4 39 24.7 H25 Q21 25.4 19 29.3 Z"
+        fill="#A04030" stroke="#12100D" stroke-width="1.6"/>
+  <path d="M19 29.3 L16.8 31 M45 29.3 L47.2 31" stroke="#A04030" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- upper walls -->
+  <rect x="26.5" y="29.5" width="11" height="4.5" fill="#E8DCC0" stroke="#12100D" stroke-width="1.2"/>
+  <path d="M30 29.5 V34 M34 29.5 V34" stroke="#3A3325" stroke-width=".8"/>
+
+  <!-- lower roof -->
+  <path d="M16 39.8 Q24 37.2 32 37.2 Q40 37.2 48 39.8 Q45.6 35.4 41 34.6 H23 Q18.4 35.4 16 39.8 Z"
+        fill="#A04030" stroke="#12100D" stroke-width="1.6"/>
+  <path d="M16 39.8 L13.6 41.6 M48 39.8 L50.4 41.6" stroke="#A04030" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- lower walls + door -->
+  <rect x="24.5" y="40" width="15" height="4.2" fill="#E8DCC0" stroke="#12100D" stroke-width="1.2"/>
+  <rect x="29.8" y="41.4" width="4.4" height="2.8" rx=".6" fill="#1D1A14"/>
+
+  <!-- base steps -->
+  <rect x="22" y="44.4" width="20" height="3" rx=".8" fill="#6E5433" stroke="#12100D" stroke-width="1.2"/>
+</svg>

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Furs">
+  <title>Furs — winter pelt</title>
+  <!-- Gilded Hex Seal frame (canonical, see docs/ART_STYLE.md) -->
+  <polygon points="32,2 58,17 58,47 32,62 6,47 6,17" fill="#1D1A14" stroke="#C8A24A" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="32,5.5 55,18.75 55,45.25 32,58.5 9,45.25 9,18.75" fill="none" stroke="#3A3325" stroke-width="1"/>
+  <circle cx="32" cy="32" r="22.7" fill="none" stroke="#B3A685" stroke-width="1" stroke-dasharray="1 3" opacity=".5"/>
+
+  <!-- ground shadow -->
+  <ellipse cx="32" cy="50.5" rx="14" ry="2.2" fill="#12100D" opacity=".45"/>
+
+  <!-- pelt silhouette -->
+  <path d="M21 17 Q32 14.5 43 17 L45.5 25 Q44 28 45 31.5 Q43.5 37 44.5 41 Q42.5 46.5 36 45.5 L32 47 L28 45.5 Q21.5 46.5 19.5 41 Q20.5 37 19 31.5 Q20 28 18.5 25 Z"
+        fill="#8A6B45" stroke="#12100D" stroke-width="1.8"/>
+
+  <!-- inner lighter patch -->
+  <path d="M24.5 21 Q32 19 39.5 21 L41 26.5 Q40 29 40.8 32 Q39.7 36 40.4 39 Q39 42.5 34.5 41.8 L32 43 L29.5 41.8 Q25 42.5 23.6 39 Q24.3 36 23.2 32 Q24 29 23 26.5 Z"
+        fill="#A98F63" opacity=".9"/>
+  <!-- guard hairs -->
+  <g stroke="#4A3A22" stroke-width="1" opacity=".6">
+    <path d="M26 24 L25 27"/>
+    <path d="M33 23 L32.4 26"/>
+    <path d="M38.5 25 L37.8 28"/>
+    <path d="M27.5 34 L26.7 37"/>
+    <path d="M36 34.5 L35.4 37.5"/>
+  </g>
+
+  <!-- gold clasp pin -->
+  <circle cx="32" cy="19.5" r="1.7" fill="#C8A24A" stroke="#12100D" stroke-width=".9"/>
+</svg>

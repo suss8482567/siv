@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Deer">
+  <title>Deer — stag with branched antlers</title>
+  <!-- Gilded Hex Seal frame (canonical, see docs/ART_STYLE.md) -->
+  <polygon points="32,2 58,17 58,47 32,62 6,47 6,17" fill="#1D1A14" stroke="#C8A24A" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="32,5.5 55,18.75 55,45.25 32,58.5 9,45.25 9,18.75" fill="none" stroke="#3A3325" stroke-width="1"/>
+  <circle cx="32" cy="32" r="22.7" fill="none" stroke="#B3A685" stroke-width="1" stroke-dasharray="1 3" opacity=".5"/>
+
+  <!-- ground shadow -->
+  <ellipse cx="32" cy="52" rx="11" ry="2.2" fill="#12100D" opacity=".45"/>
+
+  <!-- antlers -->
+  <g fill="none" stroke="#6E5433" stroke-width="2" stroke-linecap="round">
+    <path d="M27 23 Q23 18 22.5 13.5"/>
+    <path d="M24 17.5 L19.5 15.5"/>
+    <path d="M22.7 14.2 L18.8 11.8"/>
+    <path d="M37 23 Q41 18 41.5 13.5"/>
+    <path d="M40 17.5 L44.5 15.5"/>
+    <path d="M41.3 14.2 L45.2 11.8"/>
+  </g>
+
+  <!-- ears -->
+  <path d="M24.5 24.5 L20.5 26.5 L25 27.8 Z" fill="#8A6B45" stroke="#12100D" stroke-width="1.1"/>
+  <path d="M39.5 24.5 L43.5 26.5 L39 27.8 Z" fill="#8A6B45" stroke="#12100D" stroke-width="1.1"/>
+
+  <!-- head -->
+  <path d="M26.5 22 Q32 19.5 37.5 22 L38.5 32 Q38 40 32 41.5 Q26 40 25.5 32 Z"
+        fill="#8A6B45" stroke="#12100D" stroke-width="1.8"/>
+  <circle cx="28.5" cy="29.5" r="1.1" fill="#12100D"/>
+  <circle cx="35.5" cy="29.5" r="1.1" fill="#12100D"/>
+
+  <!-- muzzle -->
+  <path d="M28.5 34 h7 l1 4.5 q-4.5 2.6 -9 0 Z" fill="#E8DCC0" stroke="#12100D" stroke-width="1"/>
+  <path d="M31 38 h2 l-1 1.6 Z" fill="#12100D"/>
+
+  <!-- gold collar -->
+  <path d="M26.5 40.5 Q32 43 37.5 40.5" fill="none" stroke="#C8A24A" stroke-width="1.8"/>
+  <circle cx="32" cy="44.2" r="1.3" fill="#C8A24A" stroke="#12100D" stroke-width=".8"/>
+</svg>

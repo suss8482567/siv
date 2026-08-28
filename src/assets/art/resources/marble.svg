@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Marble">
+  <title>Marble — fluted column drum</title>
+  <!-- Gilded Hex Seal frame (canonical, see docs/ART_STYLE.md) -->
+  <polygon points="32,2 58,17 58,47 32,62 6,47 6,17" fill="#1D1A14" stroke="#C8A24A" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="32,5.5 55,18.75 55,45.25 32,58.5 9,45.25 9,18.75" fill="none" stroke="#3A3325" stroke-width="1"/>
+  <circle cx="32" cy="32" r="22.7" fill="none" stroke="#B3A685" stroke-width="1" stroke-dasharray="1 3" opacity=".5"/>
+
+  <!-- ground shadow -->
+  <ellipse cx="32" cy="52.5" rx="12" ry="2.2" fill="#12100D" opacity=".45"/>
+
+  <!-- shaft -->
+  <path d="M21.5 24 V45.5 H42.5 V24 Z" fill="#E8DCC0" stroke="#12100D" stroke-width="1.7"/>
+  <!-- bottom face -->
+  <path d="M21.5 45.5 Q32 49.2 42.5 45.5" fill="none" stroke="#12100D" stroke-width="1.7"/>
+  <!-- top face -->
+  <ellipse cx="32" cy="24" rx="10.5" ry="3.6" fill="#F2ECDC" stroke="#12100D" stroke-width="1.5"/>
+
+  <!-- flutes -->
+  <g stroke="#B3A685" stroke-width="1" opacity=".8">
+    <path d="M26 28.5 V43.5"/>
+    <path d="M29.5 29.5 V44.3"/>
+    <path d="M33 29.8 V44.4"/>
+    <path d="M36.5 29.5 V44.3"/>
+    <path d="M40 28.5 V43.5"/>
+  </g>
+
+  <!-- gold vein -->
+  <path d="M23.5 33 Q30 35.5 35 33.5 Q39.5 32 41.5 34.2" fill="none" stroke="#C8A24A" stroke-width="1.1" opacity=".95"/>
+</svg>

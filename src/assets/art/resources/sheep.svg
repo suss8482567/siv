@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Sheep">
+  <title>Sheep — ram with curled horns</title>
+  <!-- Gilded Hex Seal frame (canonical, see docs/ART_STYLE.md) -->
+  <polygon points="32,2 58,17 58,47 32,62 6,47 6,17" fill="#1D1A14" stroke="#C8A24A" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="32,5.5 55,18.75 55,45.25 32,58.5 9,45.25 9,18.75" fill="none" stroke="#3A3325" stroke-width="1"/>
+  <circle cx="32" cy="32" r="22.7" fill="none" stroke="#B3A685" stroke-width="1" stroke-dasharray="1 3" opacity=".5"/>
+
+  <!-- ground shadow -->
+  <ellipse cx="32" cy="53" rx="12" ry="2.2" fill="#12100D" opacity=".45"/>
+
+  <!-- curled horns -->
+  <path d="M24.5 31 Q17 29 16.5 23 Q16.5 18.5 21 19.5" fill="none" stroke="#B3A685" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M39.5 31 Q47 29 47.5 23 Q47.5 18.5 43 19.5" fill="none" stroke="#B3A685" stroke-width="2.6" stroke-linecap="round"/>
+
+  <!-- fleece -->
+  <circle cx="32" cy="25" r="9.5" fill="#E8DCC0" stroke="#12100D" stroke-width="1.6"/>
+  <path d="M25 23.5 q3 -3 6 0" fill="none" stroke="#B3A685" stroke-width="1" opacity=".9"/>
+  <path d="M33.5 21.5 q3 -2 4.6 1.8" fill="none" stroke="#B3A685" stroke-width="1" opacity=".9"/>
+  <path d="M26 29.5 q3 2 6 0" fill="none" stroke="#B3A685" stroke-width="1" opacity=".9"/>
+
+  <!-- face -->
+  <path d="M27.5 30 H36.5 L39.5 42 Q39.5 47 35.5 47.5 H28.5 Q24.5 47 24.5 42 Z"
+        fill="#4A3A22" stroke="#12100D" stroke-width="1.4"/>
+  <circle cx="28.5" cy="35" r="1" fill="#E8DCC0"/>
+  <circle cx="35.5" cy="35" r="1" fill="#E8DCC0"/>
+
+  <!-- gold collar bell -->
+  <path d="M27.2 43.6 H36.8" stroke="#C8A24A" stroke-width="1.4"/>
+  <path d="M30.8 43.6 H33.2 L34 47.4 H30 Z" fill="#C8A24A" stroke="#12100D" stroke-width=".9"/>
+  <circle cx="32" cy="48.6" r=".7" fill="#12100D"/>
+</svg>
