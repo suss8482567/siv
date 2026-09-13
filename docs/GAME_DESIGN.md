@@ -73,12 +73,17 @@ mobile/touch support · audio (post-v0 nicety) · mod loader UI (data files are 
 - **Terrain stack per tile**: base terrain (ocean, coast, grassland, plains, desert, tundra, snow)
   × elevation (flat, hills, mountains) × features (forest, jungle, marsh, ice, oasis, floodplain)
   × rivers (per-edge) × resource (optional).
-- **Resources**: probability tables per biome; luxury resources seeded to guarantee each civ
-  reasonable amenity income; strategic resources (horses, iron) appear from Ancient onward.
+- **Resources**: probability tables per biome; luxury resources seeded to guarantee ≥1 luxury
+  within radius 2 of each start (plus ≥1 strategic within radius 3); strategic resources (horses, iron) appear from Ancient onward.
 - **Start placement**: scored candidates (yield sum radius-2, fresh-water bonus, coast bonus),
-  spread with minimum distance between civs, snake-draft assignment.
+  spread with minimum distance between civs, greedy best-first assignment in civ order.
 
-## 5. Civilizations (first-pass concepts — balance TBD)
+## 5. Civilizations (first-pass concepts — traits display-only in v0, balance TBD)
+
+Trait text is shown in the UI but has no simulation effect yet (buildings
+apply flat yields only; see `content/buildings.ts` — percentage modifiers are
+post-v0). Uniques are stat variants with no special rules; water is impassable
+for every unit (no embark in v0).
 
 | Civ       | Trait (concept)                     | Unique unit            | Unique building        |
 |-----------|-------------------------------------|------------------------|------------------------|
@@ -97,13 +102,20 @@ with culture/science/economy payoffs. Full effects defined in content data.
 
 - **Founding**: settler unit founds a city on any valid land tile (not adjacent-to-adjacent of
   another city's center; minimum 3-tile spacing between city centers).
-- **Growth**: food surplus accumulates toward threshold `14 + 7·pop^1.4`; deficit starves
+- **Growth**: food surplus accumulates toward threshold `round(14 + 7·pop^1.4)`; deficit starves
   stored food then population.
 - **Worked tiles**: city auto-assigns citizen slots (pop count) to owned tiles maximizing
-  weighted yield score (food > production early, gold/science later); manual assignment deferred post-v0.
+  weighted yield score (food > production early, gold/science later); the city focus
+  doubles one yield's weight; manual assignment deferred post-v0.
 - **Borders**: each city accumulates culture; cost of next tile `12 + 4·owned^1.1`;
   acquisition picks best-scoring adjacent unowned tile (deterministic tie-break by tile id).
-- **Production**: single slot — picking an item replaces whatever was queued; overflow carries.
+- **Production**: single head + waiting line (cap 5) — picking an item replaces the
+  whole line unless queued behind it; overflow carries into the next head.
+  Repeat rebuilds finished units while armed (buildings are one-shot; capture clears it).
+- **City focus**: balanced/growth/production/gold/science/culture — the focused yield
+  counts double in worked-tile assignment; purely a steering weight, no extra yields.
+- **Rally points**: one per player — newly built units march to it at turn start;
+  manual orders, arrival, or an unreachable goal clear the march (the point stays).
 - **Gold**: pays unit + building maintenance; treasury clamps at 0 (no bankruptcy penalty in v0).
 - **Happiness**: not implemented in v0 — luxuries currently act as yield/trade flavor only
   (design intent above remains the target).
@@ -111,9 +123,10 @@ with culture/science/economy payoffs. Full effects defined in content data.
 ## 7. Tech tree
 
 - Four lanes: **Military**, **Economy**, **Science**, **Culture/Civic** — cross-lane prerequisites.
-- ~13 techs per era; costs scale Ancient 25–60 → Medieval 120–250 → Renaissance 300–500 beakers.
-- Techs unlock: units, buildings, wonders, embarkment (Ancient end), naval era upgrades.
+- ~13 techs per era; costs scale Ancient 20–60 → Medieval 140–250 → Renaissance 320–500 beakers.
+- Techs unlock: units, buildings, wonders. No embark/naval movement in v0 (water impassable).
 - Research chosen manually; science rolls over if nothing selected (stored progress).
+  A research queue auto-advances on completion (click a second tech to queue it).
 
 ## 8. Units & combat
 
@@ -127,22 +140,24 @@ with culture/science/economy payoffs. Full effects defined in content data.
   at 1 HP), ranged takes no retaliation. No terrain/fortify/flanking modifiers in v0.
 - **XP & promotions**: 5 XP per kill, 2 per hit; promotions auto-grant at 15/30/60 XP from four
   flat +3-strength picks (shock / drill / veteran / siege).
-- **Healing**: +10 hp/turn in the field, +20 in an own city (applied at turn start, move freely).
+- **Healing**: +10 hp/turn in the field, +20 in an own city (applied at turn start; `fortified` only holds position, no healing/combat bonus).
 - **Cities under siege**: defense strength `8 + 2·pop + Σ building def + garrison/2`; city HP
-  starts at 100; captured by melee at HP 0 (pop halved, palace lost, HP resets to 50).
+  starts at 100 and regenerates +10/turn up to 200; captured by melee at HP 0 (pop halved, palace lost, HP resets to 50).
   Barbarians raid instead of ruling: they plunder treasury and withdraw. Original capitals
   tracked for Domination.
 
 ## 9. Barbarians
 
-Camps spawn in fog-of-war areas at a slow rate; each camp spawns raiders that target nearest
-improvement/city/unit with simple FSM (guard → raid → return). Clearing camps grants gold.
+Camps spawn in fog-of-war areas at a slow rate (new camp every 14 turns, cap area/200
+clamp [3,12], ~1 per 300 tiles at mapgen); each camp spawns raiders every 7 turns
+(~30% archers / 70% warriors, cap area/110) that target nearest
+improvement/city/unit with simple FSM (guard → raid → return). Clearing camps grants gold (40+turn/10).
 No barbarian diplomacy, no camp-adjacent settling penalty in v0 (backlog).
 
 ## 10. Diplomacy (minimal)
 
 - Civs are hidden until contacted (line-of-sight meeting).
-- Per-pair relations score −100..+100 modified by: bordering pressure, declared wars, denounced
+- Per-pair relations score −100..+100 (additive per-turn drift: +1 détente base, −4 while at war, −2 while borders touch) modified by: bordering pressure, declared wars, denounced
   status, captured-cities history, difficulty baseline.
 - Actions available: **Declare War**, **Offer Peace** (AI accepts by utility threshold),
   **Denounce** (−relations, unlocks AI aggression weighting). No trades in v0.
@@ -151,8 +166,8 @@ No barbarian diplomacy, no camp-adjacent settling penalty in v0 (backlog).
 
 | Type       | Condition                                                        |
 |------------|------------------------------------------------------------------|
-| Domination | Hold every other remaining civ's original capital at end of turn |
-| Score      | Turn limit reached → highest composite score wins (fallback)     |
+| Domination | Hold every original capital (yours + every rival's; eliminated rivals' capitals still required while the city exists) |
+| Score      | Turn limit passed (`turn > 250`) → highest composite score wins (fallback)     |
 
 Score = Σ(cities×3 + pop×2 + tiles×0.25 + techs×4 + wonders×5).
 
@@ -169,8 +184,9 @@ Score = Σ(cities×3 + pop×2 + tiles×0.25 + techs×4 + wonders×5).
 
 ## 13. UI/UX
 
-- **Dense strategy HUD**: top bar (yields/turn/research/menu), right dock (minimap + notification
-  stack), bottom-left unit panel with action buttons, bottom-right End Turn.
+- **Dense strategy HUD**: top bar (yields/turn/research/menu), right dock (minimap only),
+  right unit dock under the minimap, bottom-center notification toasts, left city panel with grouped
+  Buildings / Wonders / Units rows, bottom End Turn + Save/Menu.
 - **Screens**: Main Menu (new game config: preset, size, difficulty, civ pick, seed), Game Shell,
   City Screen (with buy-production), Tech Tree, **Diplomacy panel**, **Escape menu** (resume,
   save/load, diplomacy, resign, quit), Save/Load modal, Victory/Defeat overlay, Dev cheat panel

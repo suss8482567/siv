@@ -61,12 +61,13 @@ siv/
 ├─ index.html                   single page, #app root, desktop gate
 ├─ src/
 │  ├─ main.tsx                  boot: validate content, mount App, gate viewport
-│  ├─ ui/
-│  │  ├─ App.tsx                screen switch (menu | game), keyed on sessionSeqSignal
-│  │  ├─ store.ts               signals bridge: session/selection/notifications + submitCommand
-│  │  ├─ screens/               MainMenu, GameShell, CityScreen, TechTree, VictoryScreen
-│  │  └─ hud/                   TopBar, RightDock, UnitDock, Minimap, Notifications,
-│  │                            SavePanel, DevPanel, ArtIcon
+ │  ├─ ui/
+ │  │  ├─ App.tsx                screen switch (menu | game), keyed on sessionSeqSignal
+ │  │  ├─ store.ts               signals bridge: session/selection/notifications + submitCommand
+ │  │  ├─ screens/               MainMenu, GameShell, CityScreen, TechTree, VictoryScreen,
+ │  │  │                         DiplomacyPanel
+ │  │  └─ hud/                   TopBar, RightDock, UnitDock, Minimap, Notifications,
+ │  │                            SavePanel, DevPanel, ArtIcon, EscapeMenu, TileTooltip
 │  ├─ engine/                   ★ pure simulation (no DOM imports)
 │  │  ├─ core/
 │  │  │  ├─ types.ts            GameState + all entity types, id aliases, hashState
@@ -83,22 +84,23 @@ siv/
 │  │  │  ├─ rivers.ts           river sources + steepest-descent walks
 │  │  │  ├─ populate.ts         terrain/features/resources/starts/camps/units
 │  │  │  └─ generate.ts         pipeline orchestration → GameState
-│  │  └─ systems/               one module per rule cluster (turn, movement,
-│  │                            combat, cityFound, city, economy, research, borders,
-│  │                            visibility, diplomacy, barbarian, victory, spawn,
-│  │                            dev, ai/planner)
-│  ├─ content/                  data + zod schema + ContentDb (validated, frozen)
-│  ├─ render/                   MapRenderer (Pixi), camera, palette
+ │  │  └─ systems/               one module per rule cluster (turn, movement,
+ │  │                            combat, cityFound, economy [city growth/production,
+ │  │                            research, borders], visibility, diplomacy,
+ │  │                            barbarian, victory, spawn, dev, ai/planner)
+ │  ├─ content/                  data + zod schema + ContentDb (validated, frozen)
+ │  ├─ assets/art/index.ts        SVG registry (units/yields/resources/civs/buildings/ui)
+ │  ├─ render/                   MapRenderer (Pixi), camera, palette (chrome only)
 │  ├─ input/                    InputController: mouse/WASD → camera ops + tile clicks
 │  ├─ save/                     persistence.ts: IndexedDB slots + file export/import
 │  └─ util/                     misc pure helpers
-├─ tests/
-│  ├─ engine/                   rng, mapgen, movement, visibility, cityEconomy,
-│  │                            combat, ai (incl. diplomacy/barbarians), dev,
-│  │                            victory
-│  ├─ save/                     persistence round-trip + validation
-│  ├─ architecture.test.ts      layer-boundary import scan
-│  └─ e2e/                      Playwright boot specs (`npm run e2e`)
+ ├─ tests/
+ │  ├─ engine/                   rng, mapgen, movement, visibility, cityEconomy,
+ │  │                            combat, ai (incl. diplomacy/barbarians), dev,
+ │  │                            victory, golden (50-turn hash backstop)
+ │  ├─ save/                     persistence round-trip + validation
+ │  ├─ architecture.test.ts      layer-boundary import scan
+ │  └─ e2e/                      Playwright specs: boot + UX + screenshots (`npm run e2e`)
 ├─ playwright.config.ts         webServer: vite dev @5173, reuseExistingServer
 └─ vite.config.ts               alias @ → src
 ```
@@ -211,12 +213,16 @@ Deterministic given `(seed, preset, size)`. Stages, in order:
 6. **Features**: forest/jungle/marsh/ice/oasis/floodplain by terrain+moisture tables.
 7. **Rivers**: pick sources (mountains/hills, sorted by elevation, seeded count by map area);
    greedy steepest-descent walk over tile graph until water or 40 steps; mark `riverEdges`.
-8. **Resources**: per-biome probability tables; luxury pass guarantees ≥1 luxury within radius 3
-   of each start; strategic (horses/iron) clustered.
+8. **Resources**: per-biome probability tables (per-tile density roll, no
+   clustering pass); luxury pass guarantees ≥1 luxury within radius 2 of each
+   start (plus ≥1 strategic within radius 3); strategic (horses/iron) get an
+   amount roll.
 9. **Start placement**: score every land tile (Σ yields radius 2, +fresh water, +coast, −overlap),
-   greedy best-first with min-distance constraint; assign civs snake-draft for fairness.
-10. **Emit**: tiles array + spawn units (**settler + warrior** per civ — no scout in v0) +
-   barbarian camps (~1 per 220 tiles, each with a warrior guard ≥4 hexes from starts) +
+   greedy best-first with min-distance constraint (no snake-draft); civs take starts in order.
+10. **Emit**: tiles array + spawn units (**settler + warrior** per civ — no *starting*
+   scout in v0; scout remains a buildable recon unit; the warrior escorts beside the
+   settler on the first walkable neighbor, not stacked) +
+   barbarian camps (~1 per 300 tiles, each with a warrior guard ≥4 hexes from starts) +
    `GameState` seed.
 
 Acceptance: same seed ⇒ byte-identical tiles (golden test hashes the tiles array).
@@ -225,14 +231,16 @@ Acceptance: same seed ⇒ byte-identical tiles (golden test hashes the tiles arr
 
 Sequential turns, players in `playerOrder` (human first by convention):
 
-1. `beginTurnForPlayer`: dev-tool flat income (if armed) lands first; unit movement/attacks
-   refresh; wounded units heal (+10 field / +20 in own city).
+1. `beginTurnForPlayer`: unit movement/attacks refresh; wounded units heal
+   (+10 field / +20 in own city). Dev-tool flat income (if armed) lands in
+   `endOfTurnForPlayer` *before* the city tick so bonuses count the same turn.
 2. Player acts (human: commands; AI: planner runs synchronously inside the turn wrap — no
    wall-clock budgeting, so play-outs stay deterministic).
 3. `endOfTurnForPlayer`: cities collect yields → research/production/culture progress → growth/
    starvation → border expansion → completion events.
 4. After the last player: barbarian phase, then `turn++`. Victory and elimination checks run both
-   here and immediately after any city capture or player wipe-out.
+   here and immediately after any city capture or player wipe-out. Score fires when
+   `turn > turnLimit` (i.e. turn 251+ with the default limit of 250).
 
 ## 9. Command catalog (v0)
 
@@ -243,21 +251,26 @@ Sequential turns, players in `playerOrder` (human first by convention):
 | `attackCity`                    | attackerId, cityId                        | adjacency like attackUnit; capture resolves at HP 0         |
 | `foundCity`                     | unitId                                    | settler on valid land, spacing ≥3                           |
 | `setProduction`                 | cityId, item {kind:'unit'\|'building', id} | tech unlocked; **replaces** the single-slot queue           |
+| `queueProduction` / `dequeueProduction` / `reorderProduction` | cityId, item / index / from+to | append (cap 5) / remove / move waiting items; completion consumes the head |
 | `buyProduction`                 | cityId, item                              | queued item only; gold ≥ ceil((cost−stored)×3); **Buy button in the city screen** |
-| `setResearch`                   | techId                                    | prerequisites met                                           |
-| `fortify`/`sleep`/`wake`/`skip` | unitId                                    | unit exists, owner                                          |
+| `setProductionRepeat`           | cityId, repeat                            | owner; repeat rebuilds finished **units** (buildings one-shot; cleared on capture); absent-when-off |
+| `setCityFocus`                  | cityId, focus                             | owner; growth/production/gold/science/culture double one weight (balanced = absent) |
+| `setRally`                      | tileId \| null                            | any player; new production auto-marches at turn start; manual orders/arrival/unreachable clear it |
+| `setResearch`                   | techId                                    | prerequisites met; clears the same id from the queue        |
+| `queueResearch` / `dequeueResearch` | techId                                | append/remove `researchQueue` (unknown/active/dup ignored); queueing idle starts it; completion auto-advances, skipping known |
+| `fortify`/`sleep`/`wake`/`skipTurn` | unitId                                    | unit exists, owner                                          |
 | `declareWar`                    | targetPlayerId                            | met, not already at war                                     |
 | `offerPeace`                    | targetPlayerId                            | at war; AI accepts via utility                              |
 | `denounce`                      | targetPlayerId                            | met, 20-turn cooldown per pair                              |
 | `endTurn`                       | —                                         | only current player                                         |
 | `resign`                        | —                                         | human only; Escape menu (two-step confirm); ends the game immediately — best live rival wins by score |
-| `dev*`                          | various (grant/reveal/spawn/teleport…)    | debug panel verbs; applied by `systems/dev.ts`              |
+| `dev*` (13 verbs)               | various                                     | debug panel verbs (`devRevealMap`, `devSpawnUnit`, `devSpawnCity`, `devAddGold`, `devAddScience`, `devGrantTech`, `devGrowCity`, `devAddCulture`, `devFinishProduction`, `devAddBuilding`, `devRefreshUnits`, `devSetIncome`, `devSmiteBarbarians`); applied by `systems/dev.ts`, RNG-free |
 
 Commands are pure data; `engine.dispatch` validates then applies, returning `GameEvent[]` — the
 full union lives in `core/events.ts`: `turnBegan`, `unitMoved`, `combatResolved{dmgToAttacker,
 dmgToDefender}`, `unitKilled`, `unitPromoted`, `cityFounded`, `cityCaptured`, `cityGrew`,
 `cityStarved`, `productionComplete`, `researchComplete`, `bordersExpanded`, `warDeclared`,
-`peaceMade`, `denounced`, `playerDefeated`, `victoryAchieved`. UI subscribes to events for
+`peaceMade`, `peaceRejected` (AI declined a peace offer), `denounced`, `playerDefeated`, `victoryAchieved`. UI subscribes to events for
 toasts/animations; unknown event kinds must be ignored (forward compatibility).
 
 ## 10. Combat resolution
@@ -274,22 +287,25 @@ dmg = round( 30 · e^(0.045·Δ) · U ),  U = 0.8 + 0.4·rngFraction ∈ [0.8, 1
   attacker survives on 1 HP (melee always leaves a winner). **Ranged** takes no retaliation and
   may shell cities (city HP only).
 - **Cities**: def str = `8 + 2·population + Σ building defense + garrison effectiveStr/2`;
-  HP starts at 100 on founding. At 0 HP a melee capture flips the owner (population halved,
+  HP starts at 100 on founding and regenerates +10/turn up to a 200 cap. At 0 HP a melee capture flips the owner (population halved,
   palace lost, production cleared, territory follows, HP resets to 50). Barbarians instead raid:
   they plunder `min(treasury, 30 + turn)` gold and withdraw, leaving the city at 10 HP.
 - **XP**: 5 per kill, 2 per hit. Promotions auto-grant at 15/30/60 XP from four flat +3-strength
-  picks (shock / drill / veteran / siege) defined in `content/promotions.ts`.
+  picks (shock / drill / veteran / siege — all apply +3 universally in code, including siege) defined in `content/promotions.ts`.
 - **Healing**: +10/turn in the field, +20/turn in an own city (applied in `beginTurnForPlayer`).
 
 ## 11. City economy (formulas)
 
 - **Growth threshold**: `foodNeeded(p) = round(14 + 7·p^1.4)`.
-- **Yield assembly** per city: center tile (2F/1P + era bonus), worked tiles (auto-assigned,
-  weighted score `2F+1.5P+0.8G+1.0S+0.6C`, re-evaluated on any ownership/pop change), buildings,
-  palace (+2S +3G +1C in capital), civ trait modifiers, difficulty bonuses (AI).
-- **Production**: single slot — `setProduction` replaces whatever was queued; overflow carries;
-  item cost from content; wonder = one per world (global claim).
-- **Science**: Σ city science; player accumulates into `scienceStored` toward current tech.
+- **Yield assembly** per city: center tile (2F/1P + era bonus), riverside tiles +1 gold, worked tiles (auto-assigned,
+  weighted score `1.2F+1.1P+0.7G+1.3S+1.0C`, re-evaluated on any ownership/pop change), buildings,
+  palace (+2P +2S +3G +1C in capital), civ trait modifiers (reserved — traits are display-only in v0), difficulty bonuses (AI).
+- **Production**: single head + waiting line (cap 5) — `setProduction` replaces the
+  whole line, `queueProduction` appends; overflow carries into the next head;
+  item cost from content; wonder = one per world (global claim). `setProductionRepeat`
+  rebuilds a finished unit while set (buildings complete once and clear it; capture clears it).
+- **Science**: Σ city science; player accumulates into `scienceStored` toward current tech;
+  `researchQueue` auto-advances on completion (unknown/active/dup entries never queue).
 - **Culture**: per-city; drives border tile acquisition cost `12 + 4·ownedTiles^1.1`.
 - **Gold**: income − maintenance each turn; treasury clamps at 0 (no bankruptcy/disband spiral
   in v0). Happiness is **not implemented** — luxuries currently act as yield/trade flavor only.
@@ -302,28 +318,31 @@ dmg = round( 30 · e^(0.045·Δ) · U ),  U = 0.8 + 0.4·rngFraction ∈ [0.8, 1
   bit-for-bit reproducible for a given seed + command log.
 - Candidate scorers (examples):
   - Settle: Σ weighted yields r2 + fresh water − overlap − barbarian proximity.
-  - Build: need vector (military/econ/science) vs personality; threat = Σ nearby foreign str.
+  - Build: need vector (military/econ/science) vs personality; threat = Σ nearby foreign str;
+    military has diminishing returns (standing-army penalty, M5), recon is never built as
+    soldiery, and a zero-science city forces monument to the top (science floor, M5).
   - War: `strRatio·aggression + grievance − economyRisk`; declare only > threshold, re-check
     peace every 10 turns.
   - Unit move: role-based tile scores (front line, garrison, explore frontier, escort settler).
 - **Personalities** come from `CivDef` weights; difficulty adds yield multipliers + combat str.
 - **Barbarians** (`systems/barbarian.ts`): FSM per camp {guard → raid nearest target → return};
-  spawn rate scales with turn; capped by map area fraction.
+  spawn rate scales with turn (raider grace 8, every 7 turns, raider cap area/110 min 2,
+  ~30% archers / 70% warriors; new camps every 14 turns, capped by area/200 clamp [3,12]).
 
 ## 13. Rendering architecture
 
 - One Pixi `Application`; world root `Container` transformed by camera (pan/zoom, clamp to map
   bounds, zoom 0.4–2.5, wheel-to-cursor zoom, DPR-aware resize).
-- Layer stack (bottom→top): terrain (+ rivers/features baked into cached hex textures) →
-  territory borders → fog-of-war → cities/units → **overlay** (selection ring + path-preview
+- Layer stack (bottom→top): terrain (features + resource seals baked into the cached
+  hex texture) → rivers (separate vector-stroke layer) → territory borders → fog-of-war → units → city → **overlay** (selection ring + path-preview
   dots + hold-RMB move-range shading: tiles reachable *this turn* in gold, tiles reachable
   *next turn* in paler parchment; painted as semi-transparent hex fills, cleared on
   selection change). No floating combat text in v0.
 - Barbarian camps stamp the `assets/art/ui/barbarian-camp.svg` hex seal as a preloaded Pixi
   texture (docs/ART_STYLE.md); the drawn-tents `Graphics` remain as the load-failure fallback.
-- **Texture caching**: each (terrain × elevation × feature) hex is drawn once as vector `Graphics`
-  → `renderer.generateTexture` → batched `Sprite`s. Unit/city tokens likewise. Palette module is
-  the single source of color truth (swap for sprites later without sim changes).
+- **Texture caching**: each (terrain × elevation × feature × resourceId) hex is drawn once as vector `Graphics`
+  → `renderer.generateTexture` → batched `Sprite`s. Unit/city tokens likewise. The chrome palette module (`render/palette.ts`) is
+  the single source of chrome/overlay color truth; terrain fills live in `content/terrains.ts`, civ colors in `content/civs.ts` (swap for sprites later without sim changes).
 - Fog of war: hidden tiles not drawn; remembered tiles drawn with dim overlay; visible full.
   Visibility sets recomputed by `systems/visibility.ts` on any unit/city/border change.
 - Perf budget: ≤ 8 ms/frame at zoom 1 on Huge (4,536 static sprites ≈ a handful of draw calls);
@@ -344,29 +363,35 @@ dmg = round( 30 · e^(0.045·Δ) · U ),  U = 0.8 + 0.4·rngFraction ∈ [0.8, 1
 | Space / Enter             | end turn                                                              |
 | Esc                       | close the topmost open modal (pause menu → save → tech → dev → diplomacy → selection), else open the pause menu |
 
-Hotkeys are ignored while typing in form fields and after the game has ended. `input/InputController`
+Hotkeys are ignored while typing in form fields and after the game has ended (GameShell
+hotkeys `N`/`Space`/`Enter`/`Esc` enforce this; raw WASD/arrows camera pan in
+`input/InputController` has no typing/winner guard). `GameShell` owns `N`/`Space`/`Enter`/`Esc`
+(and the dev `` ` ``/`~` toggle lives in `DevPanel`); `input/InputController`
 converts DOM events → camera ops or **intents**; intents that mutate the
 game go through the same `submitCommand`/`dispatch` path as AI commands (no UI-side mutation).
 
 ## 15. Persistence
 
 - **Format**: `{ magic:'SIV', version:1, savedAtIso, meta:{turn, civName}, state: GameState }`.
-- **IndexedDB** db `siv-saves`, store `slots` keyed `autosave | slot1 | slot2 | slot3`.
-  Autosave overwrites each turn. Export/import via file picker (`.siv.json`).
+- **IndexedDB** db `siv-saves`, store `slots` keyed `autosave | slot1 | slot2 | slot3`
+  (plus a temporary `backup-pre-scan` key used once during the 2026-08-26 audit).
+  Autosave overwrites each turn (and once at game start, turn 1). Export/import via file picker (`.json`, e.g. `siv-rome-turn12.json`).
 - Saves validate **structurally** on load (`validateSaveFile` checks magic/version/state shape,
   not a full Zod re-validation of every field); anything else refuses to load with a clear error
   (never load corrupt state).
 
 ## 16. Testing strategy
 
-- **Unit/integration (Vitest)** — 96 tests green as of 2026-08-27 across
+- **Unit/integration (Vitest)** — 171 tests green as of 2026-09-06 across
   `tests/engine/{rng,mapgen,movement,visibility,cityEconomy,combat,ai,dev,victory,golden}.test.ts`,
-  `tests/save/persistence.test.ts`, plus the `tests/architecture.test.ts` guard (`engine/**`
+  `tests/save/persistence.test.ts`, `tests/art/registry.test.ts` (every content unit/building/
+  resource/civ id resolves through the art registry; every seal carries the canonical frame,
+  milled ring, ink contour, gold touch and bare-name title), plus the `tests/architecture.test.ts` guard (`engine/**`
   never imports render/ui/input/save/app). Determinism is asserted via `hashState` equality.
 - **Golden-simulation backstop** (`tests/engine/golden.test.ts`): duel map, seed 424242, 50
   scripted endTurns; asserts run-to-run `hashState` equality AND equality with the recorded
-  golden hash (`eb4b2d49`). Bump the recorded hash **only** for intentional engine changes,
-  and note it in `CONTINUE.md`.
+   golden hash (`1c1a573`, bumped 2026-09-06 by the escort-spawn QoL — see AGENTS.md § Status). Bump the recorded hash **only** for intentional engine changes,
+   and note it in `AGENTS.md` (§ Status).
 - **E2E (Playwright)**: eight specs under `tests/e2e/` run with `npm run e2e` (needs
   `npx playwright install chromium` once): two boot specs (menu → new game boots map+HUD;
   end turn advances the turn counter), four UX specs (Esc pause menu, Space end turn,
@@ -389,12 +414,13 @@ game go through the same `submitCommand`/`dispatch` path as AI commands (no UI-s
 | M2 | Empire loop | units move (A*, ZOC), found cities, city screen, production, research, growth, borders |
 | M3 | Conflict | 1UPT combat + promotions, city siege/capture, barbarians |
 | M4 | Opponents | utility AI all categories, minimal diplomacy, 4 difficulties |
-| M5 | Ship v0 | Domination + score endings, saves/export, content complete (6 civs/40 techs), balance pass, e2e stable |
+| M5 | Ship v0 | Domination + score endings, saves/export, content complete (6 playable civs + barbarians / 39 techs), balance pass, e2e stable |
 
-> Status 2026-08-27: M0–M5 all implemented; the previously open M5 gaps are closed —
-> human-facing diplomacy UI (panel), buy-production and resign UI, all planned input
-> mappings (§14), the golden-simulation backstop and e2e screenshot baselines (§16).
-> The balance pass remains the open M5 item. Full working notes in `CONTINUE.md`.
+> Status 2026-09-06: M0–M5 all implemented, balance pass done (monument +1S science floor,
+> planner army diminishing returns + recon-out-of-military + zero-science monument priority,
+> barbarian pressure retuned: spawn every 7, raider cap area/110, camp cap area/200 min 3,
+> initial camps ~1/300; golden hash `4a6b55a` then `1c1a573` (escort-spawn QoL, with intent).
+> Session history lives in `AGENTS.md` (§ Status).
 
 ## 19. Risks & mitigations
 

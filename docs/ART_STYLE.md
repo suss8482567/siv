@@ -4,9 +4,11 @@
 future UI icons). One theme runs through all of them; this document is normative for
 new art. Update it whenever a token or rule changes.
 
-**Status:** 66/66 glyphs done (5 units + 5 yields + 19 resources + 7 civ seals + 29
-building/wonder seals + 1 barbarian-camp marker), validated well-formed XML and wired into the
-renderer/HUD (2026-08-27).
+**Status:** 81/81 glyphs done (20 units + 5 yields + 19 resources + 7 civ seals + 29
+building/wonder seals + 1 barbarian-camp marker), validated well-formed XML; resource/camp
+seals rasterized into the map renderer and all groups inlined across the HUD (unit/city
+map tokens are seal-echo medallions — plate ground, civ rim — not full seals, so they
+stay legible at token scale).
 
 **Known gaps:** none. The 2026-08-26 audit gaps (building/wonder card seals, hex-ify the
 barbarian camp marker) were closed on 2026-08-27.
@@ -131,6 +133,21 @@ No gradients anywhere — the engraved look comes from sparse dash-hatch strokes
 | `src/assets/art/units/warrior.svg` | club over hide shield | oxblood paint, flaked stone | gold boss + grip wraps |
 | `src/assets/art/units/spearman.svg` | crossed spears | bronze heads, wood shafts | gold-bound knot at crossing |
 | `src/assets/art/units/archer.svg` | recurved bow + arrow | slate fletching, bronze head | gold grip wrap at belly |
+| `src/assets/art/units/horseman.svg` | horse head (base cavalry) | bay coat, dark mane | gold bridle straps |
+| `src/assets/art/units/swordsman.svg` | crossed swords | steel blades, wood grips | gold pommels |
+| `src/assets/art/units/catapult.svg` | stone-thrower frame | wood frame, stone shot | gold pivot bands |
+| `src/assets/art/units/hoplite.svg` | Corinthian helmet + spear (Greece) | bronze, oxblood crest | gold brow band |
+| `src/assets/art/units/legion.svg` | scutum + gladius (Rome) | steel blade, hide shield | gold shield boss |
+| `src/assets/art/units/war_chariot.svg` | war chariot (Egypt) | wood frame, bronze fittings | gold wheel hubs |
+| `src/assets/art/units/crossbowman.svg` | crossbow + bolt | wood tiller, steel bow | gold trigger guard |
+| `src/assets/art/units/knight.svg` | helm + lance | steel plate, linen barding | gold visor trim |
+| `src/assets/art/units/trebuchet.svg` | trebuchet frame | wood beams, stone shot | gold counterweight bands |
+| `src/assets/art/units/berserker.svg` | crossed axes (Norse) | knapped steel, wood hafts | gold haft rings |
+| `src/assets/art/units/keshik.svg` | recurve bow on horseback (Mongolia) | wood limbs, slate fletching | gold grip wrap |
+| `src/assets/art/units/chu_ko_nu.svg` | repeater crossbow (China) | wood magazine, steel bow | gold magazine bands |
+| `src/assets/art/units/musketman.svg` | musket + powder horn | wood stock, steel barrel | gold barrel bands |
+| `src/assets/art/units/lancer.svg` | couched lance + pennon | wood shaft, steel tip | gold pennon cord |
+| `src/assets/art/units/cannon.svg` | bombard cannon | bronze barrel, wood carriage | gold barrel rings |
 | `src/assets/art/yields/food.svg` | wheat sheaf | parchment grains on green stems | gold binding cord |
 | `src/assets/art/yields/production.svg` | hammer mid-swing | rust head, wood handle | gold wedge + sparks |
 | `src/assets/art/yields/gold.svg` | coin stack | bright gold faces | milled standing coin + laurel |
@@ -182,14 +199,16 @@ canonical frame and exactly one gilded touch.
 
 ## Conventions
 
-- **Location/naming:** kebab-case files under `assets/art/{units,yields,resources,civs}/`.
+- **Location/naming:** kebab-case files under `assets/art/{units,yields,resources,civs,buildings}/`.
   New UI icons go under `assets/art/ui/`.
 - **Registry:** `src/assets/art/index.ts` globs all six groups (`units`, `yields`, `resources`,
   `civs`, `buildings`, `ui`) — raw source for Preact (`unitArt`/`yieldArt`/`civArt`/
   `resourceArt`/`buildingArt`) and URLs for Pixi (`resourceArtUrl`/`uiArtUrl`). New files are
-  picked up automatically; no import lists to maintain.
+  picked up automatically; no import lists to maintain. Filenames must match
+  `[a-z0-9_-]+` and equal the content id — `tests/art/registry.test.ts` fails otherwise.
 - **Accessibility:** every file gets `<title>` (and `role="img"` + `aria-label`) — the title
-  names the icon, not the concept ("Warrior", not "melee").
+  is the bare icon name, identical to `aria-label` ("Warrior", not "melee" and not
+  "Warrior — flaked stone club…"), enforced by the registry test.
 - **IDs:** unique within each file only (`#stalk`, `#spear`); files are standalone documents,
   so no cross-file `<use>` references.
 - **Self-contained:** inline everything; no external images/fonts/scripts. Flat colors only.
@@ -210,7 +229,10 @@ canonical frame and exactly one gilded touch.
 
 - **Map renderer:** resource seals are preloaded as Pixi textures in `MapRenderer.create`
   (`loadResourceTextures`) and stamped bottom-center into the per-key terrain texture
-  cache; abstract kind glyphs remain the fallback. Terrain cache keys now carry the
+  cache; the barbarian-camp seal marks camps; abstract kind glyphs remain the fallback.
+  Unit/city tokens are vector seal-echoes (plate disc/hex, civ-colored rim, parchment
+  class glyph, gold civilian ring) drawn in `syncUnits`/`syncTerritory` — full 64 px
+  seals would be illegible at token scale. Terrain cache keys now carry the
   resource **id**, not its kind.
 - **Preact HUD:** `ArtIcon` (`src/ui/hud/ArtIcon.tsx`) inlines raw SVG at a fixed px size —
   used by TopBar (civ seal + gold/science/culture), CityScreen (yield row + unit prod
@@ -218,9 +240,21 @@ canonical frame and exactly one gilded touch.
 
 ## Changelog
 
+- **2026-09-06** — UI/art audit fixes: registry `keyOf` now accepts underscores
+  (restored 7 silently-dropped seals: chu-ko-nu, war chariot, great library, hagia
+  sophia, machu picchu, notre-dame, stave church) with `tests/art/registry.test.ts`
+  backstopping every content id + the three pillars; aqueduct gained ink-contour
+  underlays; titles normalized to bare names; favicon redrawn to the canonical frame;
+  map unit/city tokens restyled as seal-echo medallions (plate ground, civ rim);
+  Egypt map color moved off gold (`#c8a24a` → `#2e8b9a`) to end the treasury clash.
+
 - **2026-08-27** — audit gaps closed: +29 building/wonder seals wired into the city-screen
   production cards, and the barbarian-camp map marker is now the `ui/barbarian-camp.svg`
-  hex seal (Pixi texture with drawn-tents fallback). 66 glyphs total.
+  hex seal (Pixi texture with drawn-tents fallback). 66 glyphs total at the time.
+- **2026-09-06** — docs audit: unit seals expanded to the full 20-unit roster
+  (berserker, cannon, catapult, chu-ko-nu, crossbowman, hoplite, horseman, keshik,
+  knight, lancer, legion, musketman, swordsman, trebuchet, war chariot + the original 5);
+  81 glyphs total. Status/roster/conventions updated to match disk.
 - **2026-08-26** — audit pass; no art changes. Known gaps recorded under **Status**
   (building/wonder card seals missing; round barbarian-camp badge to hex-ify).
 - **2026-08-23c** — caught the one missed resource (`salt`) when its fallback glyph showed
