@@ -37,8 +37,10 @@ describe('movement', () => {
     const settler = Object.values(state.units).find((u) => u.ownerId === human.id && u.typeId === 'settler')!;
     const range = reachableTiles(state, settler);
     expect(range.size).toBeGreaterThan(0);
-    const goal = [...range][0];
-    const path = findUnitPath(state, settler, goal)!;
+    // The escort may hold a reachable tile (A* treats occupation as blocked).
+    const goal = [...range].find((id) => id !== settler.tileId && findUnitPath(state, settler, id));
+    expect(goal).toBeDefined();
+    const path = findUnitPath(state, settler, goal!)!;
     expect(path[0]).toBe(settler.tileId);
     expect(path[path.length - 1]).toBe(goal);
     const events = applyMoveUnit(state, [], { type: 'moveUnit', unitId: settler.id, path });

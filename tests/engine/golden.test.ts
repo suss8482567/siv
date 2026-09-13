@@ -3,7 +3,7 @@
  * bit-for-bit reproducible — run-to-run hash arrays match AND the final hash
  * matches the recorded constant. When an engine change intentionally alters
  * the simulation, update GOLDEN_FINAL_HASH deliberately and note it in
- * CONTINUE.md.
+ * AGENTS.md (§ Status).
  */
 import { describe, expect, it } from 'vitest';
 import { dispatch, generateGame, hashState } from '@/engine';
@@ -20,7 +20,13 @@ const OPTIONS = {
 const TURNS = 50;
 // Recorded from the deterministic playthrough below. Bump ONLY with intent
 // (documented engine changes), never to silence a regression.
-const GOLDEN_FINAL_HASH = 'eb4b2d49';
+// 2026-09-06 (escort QoL): 4a6b55a -> 1c1a573 — starting warriors spawn on the
+// first walkable neighbor of the settler instead of stacked on it.
+// 2026-09-06 (M5 balance pass): eb4b2d49 -> 4a6b55a — monument +1S, planner
+// army diminishing returns, zero-science monument priority, recon excluded
+// from military builds, barb spawn every 7 turns, raider cap area/110,
+// camp cap area/200 min 3, initial camps ~1/300.
+const GOLDEN_FINAL_HASH = '1c1a573';
 
 function playTurns(): string[] {
   const state = generateGame(OPTIONS);

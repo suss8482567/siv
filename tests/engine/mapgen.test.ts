@@ -31,6 +31,28 @@ describe('map generation', () => {
     expect(a).not.toBe(b);
   });
 
+  it('spawns each escort beside its settler, on walkable land', () => {
+    const state = generateGame(BASE);
+    const civCount = 1 + BASE.aiCivIds.length;
+    let pairs = 0;
+    for (let pid = 0; pid < civCount; pid++) {
+      const settler = Object.values(state.units).find(
+        (u) => u.ownerId === pid && u.typeId === 'settler',
+      )!;
+      const warrior = Object.values(state.units).find(
+        (u) => u.ownerId === pid && u.typeId === 'warrior',
+      )!;
+      const st = state.map.tiles[settler.tileId];
+      const wt = state.map.tiles[warrior.tileId];
+      expect(wt.terrain).not.toBe('ocean');
+      expect(wt.terrain).not.toBe('coast');
+      expect(wt.elevation).not.toBe('mountain');
+      expect(hexDistance(st.q, st.r, wt.q, wt.r)).toBeLessThanOrEqual(1);
+      pairs += 1;
+    }
+    expect(pairs).toBe(civCount);
+  });
+
   it('places every civ start on habitable land', () => {
     const content = buildContentDb();
     const state = generateGame(BASE);
