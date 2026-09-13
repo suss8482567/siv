@@ -1,9 +1,10 @@
 import type { BuildingDef } from './schema';
 
 /**
- * v0 building roster (GAME_DESIGN §8): starters, era buildings, one unique
+ * v0 building roster (GAME_DESIGN §6): starters, era buildings, one unique
  * per civ and eight wonders. Effects are flat `yields` only (plus optional
- * flat city defense) — percentage modifiers are a post-v0 system. Wonders are
+ * flat city defense) — percentage modifiers are a post-v0 system (so civ
+ * trait texts stay display-only in v0). Wonders are
  * unique worldwide; the engine refunds production for a second copy.
  */
 export const BUILDINGS: BuildingDef[] = [
@@ -24,7 +25,7 @@ export const BUILDINGS: BuildingDef[] = [
     era: 'ancient',
     cost: 60,
     maintenance: 1,
-    yields: { food: 0, production: 0, gold: 0, science: 0, culture: 2 },
+    yields: { food: 0, production: 0, gold: 0, science: 1, culture: 2 },
     isWonder: false,
     amenityPoints: 0,
     defenseStrength: 0,

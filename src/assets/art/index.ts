@@ -21,9 +21,9 @@ const URL_MODULES = import.meta.glob('./{units,yields,resources,civs,buildings,u
   eager: true,
 }) as Record<string, string>;
 
-/** './resources/wheat.svg' -> 'resources/wheat' */
-function keyOf(path: string): string {
-  const m = /\.\/([a-z]+)\/([a-z0-9-]+)\.svg$/.exec(path);
+/** './resources/wheat.svg' -> 'resources/wheat' (exported for the art backstop test). */
+export function keyOf(path: string): string {
+  const m = /\.\/([a-z]+)\/([a-z0-9_-]+)\.svg$/.exec(path);
   return m ? `${m[1]}/${m[2]}` : path;
 }
 

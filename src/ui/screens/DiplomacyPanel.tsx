@@ -4,12 +4,14 @@
  * declare war, offer peace (AI accepts by utility; rejections surface as a
  * `peaceRejected` toast), denounce (gated by the 20-turn cooldown).
  */
+import { useState } from 'preact/hooks';
 import { signal } from '@preact/signals';
 import { buildContentDb } from '@/content';
 import { currentPlayer } from '@/engine';
 import { DENOUNCE_COOLDOWN } from '@/engine/systems/diplomacy';
 import { civArt } from '@/assets/art';
 import { ArtIcon } from '../hud/ArtIcon';
+import { ChoiceCard } from '../ChoiceCard';
 import { formatSigned } from '@/util';
 import { sessionSignal, submitCommand } from '../store';
 
@@ -22,6 +24,8 @@ export function closeDiplomacy(): void {
 }
 
 export function DiplomacyPanel() {
+  // Pending declare-war confirm (P2.6 choice card); cleared on pick/cancel.
+  const [confirmWarId, setConfirmWarId] = useState<number | null>(null);
   const session = sessionSignal.value;
   if (!session || !diplomacyOpen.value || session.state.winner) return null;
   const state = session.state;
@@ -72,7 +76,7 @@ export function DiplomacyPanel() {
                       class="btn-ghost"
                       data-testid={`diplo-war-${p.civId}`}
                       title="Declare war (−40 relations both ways)"
-                      onClick={() => submitCommand({ type: 'declareWar', targetPlayerId: p.id })}
+                      onClick={() => setConfirmWarId(p.id)}
                     >
                       Declare War
                     </button>
@@ -96,6 +100,26 @@ export function DiplomacyPanel() {
                     Denounce{cdLeft > 0 ? ` (${cdLeft})` : ''}
                   </button>
                 </div>
+                {confirmWarId === p.id && (
+                  <ChoiceCard
+                    title={`Declare war on ${civ?.name ?? p.civId}?`}
+                    trigger="You clicked Declare War."
+                    options={[
+                      {
+                        id: 'confirm',
+                        label: 'Confirm',
+                        detail: '-40 relations both ways; their allies may follow',
+                        tone: 'danger',
+                        testId: 'confirm-war',
+                      },
+                    ]}
+                    onPick={() => {
+                      submitCommand({ type: 'declareWar', targetPlayerId: p.id });
+                      setConfirmWarId(null);
+                    }}
+                    onCancel={() => setConfirmWarId(null)}
+                  />
+                )}
               </div>
             );
           })}

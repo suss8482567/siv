@@ -50,6 +50,7 @@ export function VictoryScreen() {
         <table class="standings">
           <thead>
             <tr>
+              <th aria-label="Seal" />
               <th>Civilization</th>
               <th>Score</th>
               <th>Cities</th>
@@ -63,6 +64,9 @@ export function VictoryScreen() {
                 key={p.id}
                 class={`${winner?.playerId === p.id ? 'winner' : ''} ${p.isHuman ? 'you' : ''}`.trim()}
               >
+                <td class="standings-seal">
+                  <ArtIcon art={civArt(p.civId)} size={22} label={content.civs[p.civId]?.name ?? p.civId} />
+                </td>
                 <td>{content.civs[p.civId]?.name ?? p.civId}</td>
                 <td>{Math.round(score)}</td>
                 <td>{cities}</td>

@@ -1,9 +1,9 @@
 import type { UnitDef } from './schema';
 
 /**
- * v0 roster (GAME_DESIGN §7): five starters plus era progression and one
+ * v0 roster (GAME_DESIGN §8): 20 units — settlers/civilians, era progression and one
  * unique unit per playable civ. Uniques are stat variants of a base class —
- * no special rules yet. Water stays impassable for every unit in v0.
+ * no special rules yet. Water stays impassable for every unit in v0 (no embark).
  */
 export const UNITS: UnitDef[] = [
   {

@@ -37,17 +37,37 @@ export const selectionSignal = signal<{ unitId: number | null; cityId: number | 
 });
 
 /** Recent event feed for the notification stack (newest last). */
+export interface NotificationTarget {
+  tileId: number;
+  unitId?: number;
+  cityId?: number;
+}
 export interface Notification {
   id: number;
   text: string;
   kind: 'info' | 'good' | 'bad';
+  /** Map jump destination (P1.2 Take-Me-There); absent for global news. */
+  target?: NotificationTarget;
+  /** Burst batching: consecutive identical toasts fold into one with a count. */
+  count?: number;
 }
 export const notificationsSignal = signal<Notification[]>([]);
 let notifSeq = 1;
 
-export function pushNotification(text: string, kind: Notification['kind'] = 'info'): void {
+export function pushNotification(
+  text: string,
+  kind: Notification['kind'] = 'info',
+  target?: NotificationTarget,
+): void {
   const list = notificationsSignal.peek();
-  const n: Notification = { id: notifSeq++, text, kind };
+  const last = list[list.length - 1];
+  if (last && last.text === text && last.kind === kind) {
+    last.count = (last.count ?? 1) + 1;
+    if (target && !last.target) last.target = target;
+    notificationsSignal.value = [...list];
+    return;
+  }
+  const n: Notification = { id: notifSeq++, text, kind, target };
   notificationsSignal.value = [...list.slice(-5), n];
   setTimeout(() => {
     notificationsSignal.value = notificationsSignal.peek().filter((x) => x.id !== n.id);
@@ -60,39 +80,56 @@ export function narrateEvents(events: GameEvent[]): void {
   const s = sessionSignal.peek();
   if (!s) return;
   const content = buildContentDb();
+  const humanId = s.state.players.find((p) => p.isHuman)?.id;
+  // Map jump destination for a city toast (P1.2 Take-Me-There).
+  const cityTarget = (cityId: number): NotificationTarget | undefined => {
+    const c = s.state.cities[cityId];
+    return c ? { cityId, tileId: c.tileId } : undefined;
+  };
+  const unitTarget = (unitId: number): NotificationTarget | undefined => {
+    const u = s.state.units[unitId];
+    return u ? { unitId, tileId: u.tileId } : undefined;
+  };
   for (const ev of events) {
     switch (ev.kind) {
       case 'cityFounded': {
         const founder = s.state.cities[ev.cityId]?.ownerId;
         const p = founder !== undefined ? s.state.players[founder] : undefined;
         // Foreign news stays hidden until you've met them (fog-of-war courtesy).
-        if (p?.isHuman) pushNotification(`Founded ${ev.name}`, 'good');
+        if (p?.isHuman) pushNotification(`Founded ${ev.name}`, 'good', cityTarget(ev.cityId));
         else if (p && p.metPlayerIds.some((id) => s.state.players[id]?.isHuman)) {
-          pushNotification(`${content.civs[p.civId]?.name ?? 'A rival'} founded ${ev.name}`, 'info');
+          pushNotification(`${content.civs[p.civId]?.name ?? 'A rival'} founded ${ev.name}`, 'info', cityTarget(ev.cityId));
         }
         break;
       }
-      case 'cityGrew':
-        pushNotification(`${s.state.cities[ev.cityId]?.name ?? 'City'} grew to ${ev.population}`, 'good');
+      case 'cityGrew': {
+        // Empire news stays home: rival city growth is never player-facing
+        // (fog courtesy — same gate as cityFounded, Civ VI pattern).
+        if (s.state.cities[ev.cityId]?.ownerId !== humanId) break;
+        pushNotification(`${s.state.cities[ev.cityId]?.name ?? 'City'} grew to ${ev.population}`, 'good', cityTarget(ev.cityId));
         break;
-      case 'cityStarved':
-        pushNotification(`${s.state.cities[ev.cityId]?.name ?? 'City'} starved to ${ev.population}`, 'bad');
+      }
+      case 'cityStarved': {
+        if (s.state.cities[ev.cityId]?.ownerId !== humanId) break;
+        pushNotification(`${s.state.cities[ev.cityId]?.name ?? 'City'} starved to ${ev.population}`, 'bad', cityTarget(ev.cityId));
         break;
+      }
       case 'productionComplete': {
+        if (s.state.cities[ev.cityId]?.ownerId !== humanId) break;
         const def = ev.item.kind === 'unit' ? content.units[ev.item.id] : content.buildings[ev.item.id];
-        pushNotification(`${s.state.cities[ev.cityId]?.name ?? 'City'} completed ${def?.name ?? ev.item.id}`, 'good');
+        pushNotification(`${s.state.cities[ev.cityId]?.name ?? 'City'} completed ${def?.name ?? ev.item.id}`, 'good', cityTarget(ev.cityId));
         break;
       }
       case 'researchComplete':
         pushNotification(`Researched ${content.techs[ev.techId]?.name ?? ev.techId}`, 'good');
         break;
-      case 'bordersExpanded':
-        pushNotification(`${s.state.cities[ev.cityId]?.name ?? 'City'} expanded its borders`, 'info');
+      case 'bordersExpanded': {
+        if (s.state.cities[ev.cityId]?.ownerId !== humanId) break;
+        pushNotification(`${s.state.cities[ev.cityId]?.name ?? 'City'} expanded its borders`, 'info', cityTarget(ev.cityId));
         break;
-      case 'turnBegan':
-        if (!s.state.players[ev.playerId]?.isHuman) break;
-        if (ev.turn > 1) pushNotification(`Turn ${ev.turn}`, 'info');
-        break;
+      }
+      // turnBegan: the turn marker lives in the TopBar — a toast every turn
+      // just buries real news (7s stack of six drowns in turn chips).
       case 'combatResolved': {
         const att = s.state.units[ev.attackerId];
         const target = ev.defenderCityId !== undefined
@@ -101,7 +138,8 @@ export function narrateEvents(events: GameEvent[]): void {
             ? content.units[s.state.units[ev.defenderUnitId ?? -1].typeId]?.name ?? 'unit'
             : 'unit';
         const who = att ? content.units[att.typeId]?.name ?? 'A unit' : 'A unit';
-        pushNotification(`${who} hit ${target} (−${ev.dmgToDefender}/${ev.dmgToAttacker})`, 'info');
+        const jump = att ? unitTarget(ev.attackerId) : undefined;
+        pushNotification(`${who} hit ${target} (−${ev.dmgToDefender}/${ev.dmgToAttacker})`, 'info', jump);
         break;
       }
       case 'unitKilled': {
@@ -116,7 +154,7 @@ export function narrateEvents(events: GameEvent[]): void {
       }
       case 'unitPromoted': {
         const def = content.promotions[ev.promotionId];
-        pushNotification(`Unit promoted${def ? `: ${def.name}` : ''}`, 'good');
+        pushNotification(`Unit promoted${def ? `: ${def.name}` : ''}`, 'good', unitTarget(ev.unitId));
         break;
       }
       case 'cityCaptured': {
@@ -125,6 +163,7 @@ export function narrateEvents(events: GameEvent[]): void {
         pushNotification(
           `${city?.name ?? 'City'} captured by ${content.civs[taker?.civId ?? '']?.name ?? 'raiders'}`,
           taker?.isHuman ? 'good' : 'bad',
+          cityTarget(ev.cityId),
         );
         break;
       }

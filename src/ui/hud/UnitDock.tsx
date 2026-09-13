@@ -1,4 +1,4 @@
-/** Bottom-left panel: selected unit info + action buttons. */
+/** Bottom-right unit panel: hidden unless one of your units is selected. */
 import { buildContentDb } from '@/content';
 import { currentPlayer } from '@/engine';
 import { canFoundCityAt } from '@/engine/systems/cityFound';
@@ -19,18 +19,14 @@ export function UnitDock() {
   if (cityId != null && state.cities[cityId]) return null; // CityScreen handles it
 
   const unit = unitId != null ? state.units[unitId] : undefined;
-  if (!unit || unit.ownerId !== currentPlayer(state).id) {
-    return (
-      <div class="unit-dock" data-testid="unit-dock">
-        <div class="unit-dock-empty">Select a unit or city</div>
-      </div>
-    );
-  }
+  // No placeholder panel: the dock only exists while one of your units is up.
+  if (!unit || unit.ownerId !== currentPlayer(state).id) return null;
 
   const def = buildContentDb().units[unit.typeId];
   const range = unit.movementLeft > 0 ? reachableTiles(state, unit) : new Set<number>();
   const fullRange = fullRangeTiles(state, unit);
   const canFound = unit.typeId === 'settler' && canFoundCityAt(state, unit.tileId);
+  const rallySet = currentPlayer(state).rallyTileId !== undefined;
 
   const act = (fn: () => void) => () => fn();
 
@@ -43,13 +39,20 @@ export function UnitDock() {
             <strong>{def?.name ?? unit.typeId}</strong>
             <span>
               {unit.hp} HP · {unit.movementLeft}/{def?.moves ?? 1} MP
+              {def && def.unitClass !== 'civilian' ? ` · ${def.strength} str` : ''}
+              {def && def.rangedStrength > 0 ? ` · ${def.rangedStrength} rng` : ''}
             </span>
           </div>
         </div>
       </header>
-      <small>
-        Reach now: {range.size} tiles · next turn: {fullRange.size}
+      <small title="Hold the right mouse button to shade reachable tiles on the map">
+        Reach {range.size} tiles now · {fullRange.size} next turn
       </small>
+      {unit.gotoRally && (
+        <small title="Newly built units march here; manual orders cancel it">
+          Marching to rally
+        </small>
+      )}
       <div class="unit-actions">
         {unit.typeId === 'settler' && (
           <button
@@ -64,19 +67,21 @@ export function UnitDock() {
             Found City
           </button>
         )}
-        <button
-          class="btn-ghost"
-          disabled={unit.fortified}
-          onClick={act(() => submitCommand({ type: 'fortify', unitId: unit.id }))}
-        >
-          Fortify
-        </button>
+        {(!def || def.unitClass !== 'civilian') && (
+          <button
+            class="btn-ghost"
+            disabled={unit.fortified}
+            onClick={act(() => submitCommand({ type: 'fortify', unitId: unit.id }))}
+          >
+            Fortify (F)
+          </button>
+        )}
         <button
           class="btn-ghost"
           disabled={unit.slept}
           onClick={act(() => submitCommand({ type: 'sleep', unitId: unit.id }))}
         >
-          Sleep
+          Sleep (S)
         </button>
         <button
           class="btn-ghost"
@@ -84,9 +89,27 @@ export function UnitDock() {
         >
           Skip
         </button>
+        <button
+          class="btn-ghost"
+          data-testid="set-rally"
+          title="Set the empire rally point here — newly built units march to it"
+          onClick={act(() => submitCommand({ type: 'setRally', tileId: unit.tileId }))}
+        >
+          Rally here
+        </button>
+        {rallySet && (
+          <button
+            class="btn-ghost"
+            data-testid="clear-rally"
+            title="Clear the empire rally point"
+            onClick={act(() => submitCommand({ type: 'setRally', tileId: null }))}
+          >
+            Clear rally
+          </button>
+        )}
         {(unit.fortified || unit.slept) && (
           <button class="btn-ghost" onClick={act(() => submitCommand({ type: 'wake', unitId: unit.id }))}>
-            Wake
+            Wake (W)
           </button>
         )}
       </div>

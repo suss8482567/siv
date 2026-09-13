@@ -5,6 +5,7 @@
  * world and grows as you explore. Click to recenter the main camera.
  */
 import { useEffect, useRef } from 'preact/hooks';
+import { signal } from '@preact/signals';
 import { buildContentDb, TERRAINS } from '@/content';
 import type { GameState } from '@/engine';
 import { HEX_SIZE } from '@/render/MapRenderer';
@@ -17,6 +18,67 @@ const TERRAIN_COLOR: Record<string, string> = Object.fromEntries(
 );
 const MINI_MAX = 240;
 const MINI_MIN = 3; // explored bbox margin, in cells
+
+/** P2.7 minimap options (UI-only, localStorage-persisted). */
+export type MinimapSize = 'S' | 'L';
+export const MINIMAP_STORAGE_SIZE_KEY = 'siv.minimap.size';
+export const MINIMAP_STORAGE_TERRITORY_KEY = 'siv.minimap.territory';
+export const MINIMAP_MAX_S = 150;
+export const MINIMAP_MAX_L = 240;
+
+function loadMinimapSize(): MinimapSize {
+  try {
+    if (typeof localStorage === 'undefined') return 'L';
+    return localStorage.getItem(MINIMAP_STORAGE_SIZE_KEY) === 'S' ? 'S' : 'L';
+  } catch {
+    return 'L';
+  }
+}
+
+function loadMinimapTerritory(): boolean {
+  try {
+    if (typeof localStorage === 'undefined') return false;
+    return localStorage.getItem(MINIMAP_STORAGE_TERRITORY_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export const minimapSizeSignal = signal<MinimapSize>(loadMinimapSize());
+export const minimapTerritorySignal = signal<boolean>(loadMinimapTerritory());
+
+export function setMinimapSize(next: MinimapSize): void {
+  minimapSizeSignal.value = next;
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.setItem(MINIMAP_STORAGE_SIZE_KEY, next);
+  } catch {
+    // Private-mode writes fail silently; the in-memory signal still holds.
+  }
+}
+
+export function toggleMinimapSize(): void {
+  setMinimapSize(minimapSizeSignal.value === 'S' ? 'L' : 'S');
+}
+
+export function setMinimapTerritory(on: boolean): void {
+  minimapTerritorySignal.value = on;
+  try {
+    if (typeof localStorage === 'undefined') return;
+    if (on) localStorage.setItem(MINIMAP_STORAGE_TERRITORY_KEY, '1');
+    else localStorage.removeItem(MINIMAP_STORAGE_TERRITORY_KEY);
+  } catch {
+    // Private-mode writes fail silently; the in-memory signal still holds.
+  }
+}
+
+export function toggleMinimapTerritory(): void {
+  setMinimapTerritory(!minimapTerritorySignal.value);
+}
+
+export interface MinimapOptions {
+  maxSize?: number;
+  showTerritory?: boolean;
+}
 
 /** Explored bbox in offset-grid cells, padded, clamped to the map. */
 function exploredFrame(state: GameState): { c0: number; r0: number; cols: number; rows: number } {
@@ -43,11 +105,17 @@ function exploredFrame(state: GameState): { c0: number; r0: number; cols: number
   return { c0, r0, cols: Math.max(1, cols), rows: Math.max(1, rows) };
 }
 
-export function drawMinimap(canvas: HTMLCanvasElement, renderer: MapRenderer, state: GameState): void {
+export function drawMinimap(
+  canvas: HTMLCanvasElement,
+  renderer: MapRenderer,
+  state: GameState,
+  opts?: MinimapOptions,
+): void {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   const frame = exploredFrame(state);
-  const scale = Math.min(MINI_MAX / frame.cols, MINI_MAX / frame.rows);
+  const miniMax = opts?.maxSize ?? MINI_MAX;
+  const scale = Math.min(miniMax / frame.cols, miniMax / frame.rows);
   const w = Math.max(1, Math.round(frame.cols * scale));
   const h = Math.max(1, Math.round(frame.rows * scale));
   if (canvas.width !== w || canvas.height !== h) {
@@ -81,6 +149,21 @@ export function drawMinimap(canvas: HTMLCanvasElement, renderer: MapRenderer, st
   }
   // Unit dots: own always, enemies only while visible.
   const content = buildContentDb();
+  // Territory shading (P2.7 option): civ-colored wash under the dots, with
+  // the same fog courtesy as the main map (foreign land only while visible).
+  if (opts?.showTerritory) {
+    ctx.save();
+    ctx.globalAlpha = 0.38;
+    for (const tile of state.map.tiles) {
+      if (tile.ownerPlayerId === undefined || !exploredSet.has(tile.id)) continue;
+      if (tile.ownerPlayerId !== humanId && !visible.has(tile.id)) continue;
+      const col = tile.q + ((tile.r - (tile.r & 1)) >> 1);
+      const { x, y } = toMini(col, tile.r);
+      ctx.fillStyle = content.civs[state.players[tile.ownerPlayerId]?.civId ?? '']?.color ?? '#ffffff';
+      ctx.fillRect(x, y, cell, cell);
+    }
+    ctx.restore();
+  }
   const dot = Math.max(2, Math.round(cell * 0.55));
   for (const unit of Object.values(state.units)) {
     if (unit.ownerId !== humanId && !visible.has(unit.tileId)) continue;
@@ -103,12 +186,20 @@ export function drawMinimap(canvas: HTMLCanvasElement, renderer: MapRenderer, st
   });
   const a1 = toOffset(cam.x - viewW / (2 * cam.zoom), cam.y - viewH / (2 * cam.zoom));
   const a2 = toOffset(cam.x + viewW / (2 * cam.zoom), cam.y + viewH / (2 * cam.zoom));
-  const rx = (a1.col - frame.c0) * scale;
-  const ry = (a1.row - frame.r0) * scale;
-  const rw = Math.max(1, (a2.col - a1.col) * scale);
-  const rh = Math.max(1, (a2.row - a1.row) * scale);
-  // If the whole frame fits inside the viewport, the rect conveys nothing.
-  if (rx <= 0 && ry <= 0 && rx + rw >= w && ry + rh >= h) return;
+  const rx0 = (a1.col - frame.c0) * scale;
+  const ry0 = (a1.row - frame.r0) * scale;
+  const rw0 = Math.max(1, (a2.col - a1.col) * scale);
+  const rh0 = Math.max(1, (a2.row - a1.row) * scale);
+  // Clamp to the canvas — a viewport much larger than the known world would
+  // otherwise smear its edges across the minimap as full-width lines.
+  const rx = Math.max(0, rx0);
+  const ry = Math.max(0, ry0);
+  const rw = Math.min(w, rx0 + rw0) - rx;
+  const rh = Math.min(h, ry0 + rh0) - ry;
+  if (rw <= 0 || rh <= 0) return;
+  // When the (clamped) rect covers ~the whole frame, the viewport wraps
+  // everything explored and the rectangle conveys nothing.
+  if (rw * rh >= 0.9 * w * h) return;
   ctx.strokeStyle = '#c8a24a';
   ctx.lineWidth = 1.5;
   ctx.strokeRect(rx, ry, rw, rh);
@@ -116,12 +207,41 @@ export function drawMinimap(canvas: HTMLCanvasElement, renderer: MapRenderer, st
 
 export function Minimap() {
   const session = sessionSignal.value;
+  const size = minimapSizeSignal.value;
+  const showTerritory = minimapTerritorySignal.value;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !session?.renderer) return;
-    drawMinimap(canvas, session.renderer, session.state);
-  }, [session?.version, session?.renderer]);
+    const s = session;
+    if (!canvas || !s?.renderer) return;
+    const renderer = s.renderer;
+    const draw = () =>
+      drawMinimap(canvas, renderer, s.state, {
+        maxSize: minimapSizeSignal.peek() === 'S' ? MINIMAP_MAX_S : MINIMAP_MAX_L,
+        showTerritory: minimapTerritorySignal.peek(),
+      });
+    draw();
+    // The viewport rectangle must track the camera between commands (Civ VI
+    // pattern): redraw on the render ticker, throttled to ~10 fps and only
+    // when the camera actually moved.
+    let lastX = renderer.camera.x;
+    let lastY = renderer.camera.y;
+    let lastZoom = renderer.camera.zoom;
+    let lastDraw = 0;
+    const cb = () => {
+      const c = renderer.camera;
+      if (c.x === lastX && c.y === lastY && c.zoom === lastZoom) return;
+      const now = performance.now();
+      if (now - lastDraw < 100) return;
+      lastX = c.x;
+      lastY = c.y;
+      lastZoom = c.zoom;
+      lastDraw = now;
+      draw();
+    };
+    renderer.addTickCallback(cb);
+    return () => renderer.removeTickCallback(cb);
+  }, [session?.version, session?.renderer, size, showTerritory]);
   if (!session?.renderer) return <div class="minimap-placeholder">Minimap…</div>;
   const renderer = session.renderer;
   const onMiniClick = (e: MouseEvent) => {
@@ -135,13 +255,34 @@ export function Minimap() {
     renderer.camera.centerOn((col + 0.25) * Math.sqrt(3) * s, row * 1.5 * s);
   };
   return (
-    <canvas
-      ref={canvasRef}
-      class="minimap-canvas"
-      width={236}
-      height={150}
-      data-testid="minimap"
-      onClick={onMiniClick}
-    />
+    <div class="minimap-wrap">
+      <div class="minimap-options">
+        <button
+          class="mini-opt-btn"
+          data-testid="minimap-size"
+          title="Toggle minimap size (S/L)"
+          onClick={() => toggleMinimapSize()}
+        >
+          {size === 'S' ? 'Size: S' : 'Size: L'}
+        </button>
+        <button
+          class="mini-opt-btn"
+          data-testid="minimap-territory"
+          title="Toggle territory shading on the minimap"
+          aria-pressed={showTerritory}
+          onClick={() => toggleMinimapTerritory()}
+        >
+          {showTerritory ? 'Territory: On' : 'Territory: Off'}
+        </button>
+      </div>
+      <canvas
+        ref={canvasRef}
+        class="minimap-canvas"
+        width={236}
+        height={150}
+        data-testid="minimap"
+        onClick={onMiniClick}
+      />
+    </div>
   );
 }

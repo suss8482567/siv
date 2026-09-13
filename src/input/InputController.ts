@@ -1,7 +1,8 @@
 /**
  * Converts DOM events on the map canvas into camera ops and game intents.
- * M0 scope: drag/WASD pan, wheel zoom, tile click reporting.
- * Selection, path preview and command intents arrive in M2 (SPEC §14).
+ * Drag/LMB-drop pan, wheel-to-cursor zoom, WASD/arrows pan, tile click /
+ * right-click reporting, RMB hold shading hooks and hover-tile reporting.
+ * Selection, path preview and command intents are wired by GameShell (SPEC §14).
  */
 import { pixelToTile } from '@/engine';
 import { HEX_SIZE, type MapRenderer } from '@/render/MapRenderer';

@@ -1,6 +1,6 @@
 import type { CivDef } from './schema';
 
-/** Six civs with first-pass trait concepts (see GAME_DESIGN.md §5). Balance TBD. */
+/** Six playable civs (+ barbarian pseudo-civ) with first-pass trait concepts (see GAME_DESIGN.md §5). Traits are display-only in v0. Balance TBD. */
 export const CIVS: CivDef[] = [
   {
     id: 'rome',
@@ -18,7 +18,7 @@ export const CIVS: CivDef[] = [
     id: 'egypt',
     name: 'Egypt',
     leaderName: 'Hatshepsut',
-    color: '#c8a24a',
+    color: '#2e8b9a',
     traitName: 'Gift of the Nile',
     traitDescription: '+1 food on riverside tiles.',
     personality: { aggression: 0.3, expansionism: 0.6, scienceFocus: 0.6, defensiveness: 0.6 },

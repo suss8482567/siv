@@ -124,7 +124,7 @@ export function SavePanel({ onClose }: { onClose: () => void }) {
       >
         <header>
           <h2>Save / Load</h2>
-          <button class="dev-inline-btn" data-testid="close-save-panel" onClick={onClose}>
+          <button class="btn-ghost" data-testid="close-save-panel" onClick={onClose}>
             ✕ Close
           </button>
         </header>

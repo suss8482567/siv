@@ -5,7 +5,7 @@
 import { buildContentDb } from '@/content';
 import type { BuildingDef, UnitDef } from '@/content';
 import { currentPlayer } from '@/engine';
-import { computeCityYields, cultureForNextBorder, foodToGrow } from '@/engine/systems/economy';
+import { computeCityYields, cultureForNextBorder, foodToGrow, MAX_PRODUCTION_QUEUE } from '@/engine/systems/economy';
 import { buildingArt, unitArt, yieldArt } from '@/assets/art';
 import { ArtIcon } from '../hud/ArtIcon';
 import { selectionSignal, sessionSignal, submitCommand } from '../store';
@@ -72,11 +72,11 @@ export function CityScreen() {
           </button>
         </header>
         <div class="city-yields" data-testid="city-yields">
-          <span title="Food per turn"><ArtIcon art={yieldArt('food')} size={16} label="Food" />{y.food}</span>
-          <span title="Production per turn"><ArtIcon art={yieldArt('production')} size={16} label="Production" />{y.production}</span>
-          <span title="Gold per turn"><ArtIcon art={yieldArt('gold')} size={16} label="Gold" />{y.gold}</span>
-          <span title="Science per turn"><ArtIcon art={yieldArt('science')} size={16} label="Science" />{y.science}</span>
-          <span title="Culture per turn"><ArtIcon art={yieldArt('culture')} size={16} label="Culture" />{y.culture}</span>
+          <span class="y-food" title="Food per turn"><ArtIcon art={yieldArt('food')} size={16} label="Food" />{y.food}</span>
+          <span class="y-production" title="Production per turn"><ArtIcon art={yieldArt('production')} size={16} label="Production" />{y.production}</span>
+          <span class="y-gold" title="Gold per turn"><ArtIcon art={yieldArt('gold')} size={16} label="Gold" />{y.gold}</span>
+          <span class="y-science" title="Science per turn"><ArtIcon art={yieldArt('science')} size={16} label="Science" />{y.science}</span>
+          <span class="y-culture" title="Culture per turn"><ArtIcon art={yieldArt('culture')} size={16} label="Culture" />{y.culture}</span>
         </div>
         <div class="city-growth">
           Growth: {Math.max(0, city.foodStored)} / {need} food
@@ -85,32 +85,119 @@ export function CityScreen() {
           {' · '}
           Tiles worked: {Math.min(city.population, Math.max(0, city.ownedTileIds.length - 1))}
         </div>
+        <div class="city-focus" data-testid="city-focus">
+          <span class="city-focus-label" title="Steers automatic worked-tile assignment">Focus:</span>
+          {(['balanced', 'growth', 'production', 'gold', 'science', 'culture'] as const).map((f) => {
+            const active = (city.focus ?? 'balanced') === f;
+            return (
+              <button
+                key={f}
+                class={`focus-btn${active ? ' active' : ''}`}
+                data-testid={`focus-${f}`}
+                aria-pressed={active}
+                title={f === 'balanced' ? 'Balanced yields' : `Worked tiles prefer ${f}`}
+                onClick={() => submitCommand({ type: 'setCityFocus', cityId: city.id, focus: f })}
+              >
+                {f}
+              </button>
+            );
+          })}
+        </div>
         <div class="city-production">
           <div class="prod-head">
             <h3>
               Production{' '}
               {item ? `— ${itemLabel(item.kind, item.id)} (${Math.max(0, (itemCost ?? 0) - city.productionStored)} left)` : '— nothing queued'}
             </h3>
-            {item && itemCost !== undefined && itemCost > city.productionStored && (
-              <button
-                class="btn-ghost buy-btn"
-                data-testid="buy-production"
-                disabled={currentPlayer(state).gold < buyGoldCost(itemCost, city.productionStored)}
-                title={`Buy outright for ${buyGoldCost(itemCost, city.productionStored)} gold (3× remaining hammers)`}
-                onClick={() => submitCommand({ type: 'buyProduction', cityId: city.id, item })}
-              >
-                <ArtIcon art={yieldArt('gold')} size={14} label="Gold" />
-                Buy {buyGoldCost(itemCost, city.productionStored)}
-              </button>
+            {item && (
+              <div class="prod-head-actions">
+                {item.kind === 'unit' && (
+                  <button
+                    class="btn-ghost buy-btn"
+                    data-testid="repeat-production"
+                    aria-pressed={city.productionRepeat === true}
+                    title={city.productionRepeat
+                      ? 'Repeat on — the same unit rebuilds after each completion (buildings are one-shot)'
+                      : 'Repeat off — build the queued unit again after each completion'}
+                    onClick={() => submitCommand({
+                      type: 'setProductionRepeat',
+                      cityId: city.id,
+                      repeat: city.productionRepeat !== true,
+                    })}
+                  >
+                    Repeat{city.productionRepeat ? ' ✓' : ''}
+                  </button>
+                )}
+                {itemCost !== undefined && itemCost > city.productionStored && (
+                  <button
+                    class="btn-ghost buy-btn"
+                    data-testid="buy-production"
+                    disabled={currentPlayer(state).gold < buyGoldCost(itemCost, city.productionStored)}
+                    title={`Buy outright for ${buyGoldCost(itemCost, city.productionStored)} gold (3× remaining hammers)`}
+                    onClick={() => submitCommand({ type: 'buyProduction', cityId: city.id, item })}
+                  >
+                    <ArtIcon art={yieldArt('gold')} size={14} label="Gold" />
+                    Buy {buyGoldCost(itemCost, city.productionStored)}
+                  </button>
+                )}
+              </div>
             )}
           </div>
 
+          {city.productionQueue.length > 1 && (
+            <div class="queue-list" data-testid="production-queue">
+              <h3>Up next</h3>
+              {city.productionQueue.slice(1).map((q, i) => {
+                const idx = i + 1;
+                return (
+                  <div key={`${q.kind}-${q.id}-${idx}`} class="queue-row">
+                    <span class="queue-name">{idx}. {itemLabel(q.kind, q.id)}</span>
+                    <span class="queue-controls">
+                      <button
+                        class="inline-btn"
+                        data-testid={`queue-up-${idx}`}
+                        disabled={idx <= 1}
+                        title="Move earlier"
+                        onClick={() => submitCommand({ type: 'reorderProduction', cityId: city.id, fromIndex: idx, toIndex: idx - 1 })}
+                      >
+                        ↑
+                      </button>
+                      <button
+                        class="inline-btn"
+                        data-testid={`queue-down-${idx}`}
+                        disabled={idx >= city.productionQueue.length - 1}
+                        title="Move later"
+                        onClick={() => submitCommand({ type: 'reorderProduction', cityId: city.id, fromIndex: idx, toIndex: idx + 1 })}
+                      >
+                        ↓
+                      </button>
+                      <button
+                        class="inline-btn"
+                        data-testid={`queue-remove-${idx}`}
+                        title={`Remove ${itemLabel(q.kind, q.id)} from the queue`}
+                        onClick={() => submitCommand({ type: 'dequeueProduction', cityId: city.id, index: idx })}
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           <ProdRow
             title="Buildings"
+            queuedKey={item ? `${item.kind}:${item.id}` : undefined}
+            prodPerTurn={y.production}
+            stored={city.productionStored}
+            cityId={city.id}
+            queueFull={city.productionQueue.length >= MAX_PRODUCTION_QUEUE}
             items={buildings.map((b) => ({
               key: b.id,
               name: b.name,
               cost: b.cost,
+              upkeep: b.maintenance,
               locked: !available(b.requiresTechId),
               desc: buildingDesc(b),
               kind: 'building' as const,
@@ -121,10 +208,16 @@ export function CityScreen() {
           <ProdRow
             title="Wonders"
             subtitle="one per world"
+            queuedKey={item ? `${item.kind}:${item.id}` : undefined}
+            prodPerTurn={y.production}
+            stored={city.productionStored}
+            cityId={city.id}
+            queueFull={city.productionQueue.length >= MAX_PRODUCTION_QUEUE}
             items={wonders.map((w) => ({
               key: w.id,
               name: w.name,
               cost: w.cost,
+              upkeep: w.maintenance,
               locked: !available(w.requiresTechId),
               desc: buildingDesc(w),
               kind: 'building' as const,
@@ -134,10 +227,16 @@ export function CityScreen() {
           />
           <ProdRow
             title="Units"
+            queuedKey={item ? `${item.kind}:${item.id}` : undefined}
+            prodPerTurn={y.production}
+            stored={city.productionStored}
+            cityId={city.id}
+            queueFull={city.productionQueue.length >= MAX_PRODUCTION_QUEUE}
             items={units.map((u) => ({
               key: u.id,
               name: u.name,
               cost: u.cost,
+              upkeep: u.maintenance,
               locked: !available(u.requiresTechId),
               desc: unitDesc(u),
               kind: 'unit' as const,
@@ -155,6 +254,7 @@ interface ProdItem {
   key: string;
   name: string;
   cost: number;
+  upkeep: number;
   locked: boolean;
   desc: string;
   kind: 'unit' | 'building';
@@ -162,9 +262,11 @@ interface ProdItem {
   art?: string;
 }
 
-function ProdRow(props: { title: string; subtitle?: string; items: ProdItem[] }) {
+function ProdRow(props: { title: string; subtitle?: string; items: ProdItem[]; queuedKey?: string; prodPerTurn: number; stored: number; cityId: number; queueFull: boolean }) {
   const setProduction = (it: ProdItem) =>
-    submitCommand({ type: 'setProduction', cityId: selectionSignal.value.cityId!, item: { kind: it.kind, id: it.key } });
+    submitCommand({ type: 'setProduction', cityId: props.cityId, item: { kind: it.kind, id: it.key } });
+  const queueItem = (it: ProdItem) =>
+    submitCommand({ type: 'queueProduction', cityId: props.cityId, item: { kind: it.kind, id: it.key } });
   return (
     <div class="prod-row">
       <h3>{props.title}{props.subtitle ? ` — ${props.subtitle}` : ''}</h3>
@@ -172,23 +274,41 @@ function ProdRow(props: { title: string; subtitle?: string; items: ProdItem[] })
         <div class="prod-row-empty">None available.</div>
       ) : (
         <div class="prod-options">
-          {props.items.map((it) => (
-            <button
-              key={it.key}
-              class={`prod-card${it.wonder ? ' wonder-card' : ''}`}
-              data-testid={`prod-${it.key}`}
-              disabled={it.locked}
-              title={`${it.name}\n${it.desc}\n${it.cost} hammers`}
-              onClick={() => setProduction(it)}
-            >
-              {it.art && <ArtIcon art={it.art} size={40} label={it.name} />}
-              <strong>{it.name}</strong>
-              <small>
-                {it.cost} hammers · {it.kind}
-                {it.locked ? ' (tech locked)' : ''}
-              </small>
-            </button>
-          ))}
+          {props.items.map((it) => {
+            const isQueued = props.queuedKey === `${it.kind}:${it.key}`;
+            return (
+              <div
+                key={it.key}
+                class={`prod-card${it.wonder ? ' wonder-card' : ''}${isQueued ? ' queued' : ''}${it.locked ? ' locked' : ''}`}
+              >
+                <button
+                  class="prod-pick"
+                  data-testid={`prod-${it.key}`}
+                  disabled={it.locked}
+                  title={`${it.name}\n${it.desc}\n${it.cost} hammers\nClick replaces the queue`}
+                  onClick={() => setProduction(it)}
+                >
+                  {it.art && <ArtIcon art={it.art} size={40} label={it.name} />}
+                  <strong>{it.name}</strong>
+                  <small>
+                    {it.cost} hammers · {turnsLabel(it.cost, isQueued ? props.stored : 0, props.prodPerTurn)}
+                    {it.upkeep > 0 ? ` · ${it.upkeep} g/t` : ''}
+                    {it.locked ? ' (tech locked)' : ''}
+                    {isQueued ? ' · queued' : ''}
+                  </small>
+                </button>
+                <button
+                  class="inline-btn prod-queue-btn"
+                  data-testid={`queue-${it.key}`}
+                  disabled={it.locked || props.queueFull}
+                  title={props.queueFull ? 'Queue is full (5 max)' : `Append ${it.name} to the queue`}
+                  onClick={() => queueItem(it)}
+                >
+                  + Queue
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -203,4 +323,10 @@ function itemLabel(kind: 'unit' | 'building', id: string): string {
 /** Engine mirror (SPEC §9): buying costs 3 gold per remaining hammer. */
 function buyGoldCost(cost: number, stored: number): number {
   return Math.ceil(Math.max(0, cost - stored) * 3);
+}
+
+/** Turns to finish at the city's current production rate (queued progress counts). */
+function turnsLabel(cost: number, stored: number, perTurn: number): string {
+  if (perTurn <= 0) return '—';
+  return `${Math.max(1, Math.ceil(Math.max(0, cost - stored) / perTurn))} turns`;
 }

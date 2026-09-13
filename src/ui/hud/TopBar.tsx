@@ -6,6 +6,8 @@ import { civArt, yieldArt } from '@/assets/art';
 import { ArtIcon } from './ArtIcon';
 import { openTechTree } from '../screens/TechTree';
 import { openDiplomacy } from '../screens/DiplomacyPanel';
+import { openEmpire } from '../screens/EmpireOverview';
+import { openHelp } from '../help';
 import { sessionSignal } from '../store';
 import { formatSigned } from '@/util';
 
@@ -59,6 +61,22 @@ export function TopBar() {
         onClick={() => openDiplomacy()}
       >
         Diplomacy
+      </button>
+      <button
+        class="btn-ghost"
+        data-testid="open-empire"
+        title="Empire overview — cities and units"
+        onClick={() => openEmpire()}
+      >
+        Empire
+      </button>
+      <button
+        class="btn-ghost"
+        data-testid="open-help"
+        title="In-game help — units, techs, yields, concepts"
+        onClick={() => openHelp()}
+      >
+        Help
       </button>
     </div>
   );

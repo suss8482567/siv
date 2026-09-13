@@ -1,7 +1,7 @@
 import type { TechDef } from './schema';
 
 /**
- * Full v0 tree (GAME_DESIGN §6): 13 techs per era × 3 eras. The seven
+ * Full v0 tree (GAME_DESIGN §7): 13 techs per era × 3 eras = 39 techs. The seven
  * Ancient-era starter ids keep their original ids/costs — saves and tests
  * depend on them.
  */

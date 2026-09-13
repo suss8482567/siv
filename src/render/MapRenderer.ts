@@ -1,13 +1,15 @@
 /**
  * Pixi-based hex map renderer (SPEC §13). Layers bottom-up: terrain, rivers,
- * fog. Units / cities / borders land in later milestones as additional layers
- * inside the same world container.
+ * territory, fog, units, cities, overlay (selection / path / range) inside
+ * the same world container. Unit/city tokens are seal-echo medallions
+ * (plate ground, civ rim); resource/camp art reuses the Gilded Hex Seals.
  */
-import { Application, Assets, Container, Graphics, Sprite, type Texture } from 'pixi.js';
+import { Application, Assets, Container, Graphics, Sprite, Text, type Texture } from 'pixi.js';
 import { buildContentDb, type ContentDb } from '@/content';
 import type { GameState } from '@/engine';
 import { axialToOffset, tileToPixel } from '@/engine/hex/axial';
 import { HEX_DIRECTIONS, tileIndex } from '@/engine/hex/axial';
+import { computeCityYields } from '@/engine/systems/economy';
 import { resourceArtUrl, uiArtUrl } from '@/assets/art';
 import { Camera } from './camera';
 import { PALETTE } from './palette';
@@ -26,6 +28,13 @@ function hexCornerPoints(s: number): number[] {
 export interface FogData {
   explored: Set<number>;
   visible: Set<number>;
+}
+
+/** P2.1 lens paint bucket: a precomputed tile set + one tint. */
+export interface LensBucket {
+  tileIds: number[];
+  color: string;
+  alpha: number;
 }
 
 export class MapRenderer {
@@ -48,6 +57,7 @@ export class MapRenderer {
   private selectionRing: Graphics | null = null;
   private pathPreview: Graphics | null = null;
   private rangeOverlay: Graphics | null = null;
+  private lensOverlay: Graphics | null = null;
   private disposed = false;
   private bounds = { minX: 0, minY: 0, maxX: 0, maxY: 0 };
   private mapTiles: GameState['map']['tiles'] = [];
@@ -249,7 +259,11 @@ export class MapRenderer {
     return this.app.renderer.generateTexture(g);
   }
 
-  /** Rebuild unit tokens (M1 stopgap; M2 adds selection rings + movement). */
+  /**
+   * Rebuild unit tokens: seal-echo medallions — plate ground with a
+   * civ-colored rim (owner reads at a glance), parchment chevron for military
+   * and a gold ring for civilians, HP pips under wounded tokens.
+   */
   syncUnits(state: GameState, visible: Set<number>): void {
     if (this.disposed) return;
     this.unitsLayer.removeChildren().forEach((c) => c.destroy());
@@ -262,12 +276,12 @@ export class MapRenderer {
       const pos = tileToPixel(t.q, t.r, HEX_SIZE);
       const g = new Graphics();
       g.circle(0, 0, radius);
-      g.fill(content.civs[state.players[unit.ownerId].civId]?.color ?? '#ffffff');
-      g.stroke({ width: 2, color: PALETTE.parchment, alpha: 0.9 });
+      g.fill(PALETTE.plate);
+      g.stroke({ width: 2.5, color: content.civs[state.players[unit.ownerId].civId]?.color ?? '#ffffff', alpha: 0.95 });
       if (unit.typeId === 'settler') {
-        // Civilian marker: hollow ring so military units read apart.
+        // Civilian marker: gold ring so non-combatants read apart.
         g.circle(0, 0, radius * 0.45);
-        g.stroke({ width: 2, color: PALETTE.parchment, alpha: 0.9 });
+        g.stroke({ width: 2, color: PALETTE.goldAccent, alpha: 0.95 });
       } else {
         g.moveTo(-radius * 0.4, radius * 0.3);
         g.lineTo(0, -radius * 0.42);
@@ -394,7 +408,8 @@ syncTerritory(state: GameState, visible: Set<number>): void {
     g.stroke({ width: 3, color, alpha: 0.9 });
     this.territoryLayer.addChild(g);
   }
-  // City tokens on top of their tile.
+  // City tokens: hex-plate medallions echoing the map grid and the seal
+  // frames — plate ground, civ-colored rim, parchment heart (star = palace).
   for (const city of Object.values(state.cities)) {
     const t = state.map.tiles[city.tileId];
     const isHuman = city.ownerId === humanId;
@@ -402,18 +417,87 @@ syncTerritory(state: GameState, visible: Set<number>): void {
     const color = content.civs[state.players[city.ownerId]?.civId ?? '']?.color ?? '#ffffff';
     const pos = tileToPixel(t.q, t.r, s);
     const g = new Graphics();
-    g.roundRect(-s * 0.3, -s * 0.42, s * 0.6, s * 0.6, 4);
-    g.fill({ color, alpha: 0.95 });
-    g.stroke({ width: 2, color: PALETTE.parchment, alpha: 0.95 });
+    g.poly(hexCornerPoints(s * 0.34));
+    g.fill({ color: PALETTE.plate, alpha: 0.95 });
+    g.stroke({ width: 2, color, alpha: 0.95 });
     if (city.buildings.includes('palace')) {
       g.star(0, -s * 0.42, 5, s * 0.12, s * 0.05);
       g.fill({ color: PALETTE.parchment, alpha: 0.95 });
     }
-    g.circle(0, -s * 0.12, s * 0.1);
-    g.fill({ color: PALETTE.ink, alpha: 0.85 });
+    g.circle(0, -s * 0.1, s * 0.08);
+    g.fill({ color: PALETTE.parchment, alpha: 0.9 });
     g.position.set(pos.x, pos.y);
     this.cityLayer.addChild(g);
   }
+  // City banners (Civ VI pattern): name · pop above every visible city, with
+  // the human's live build + ETA on a second line — the city is the most
+  // inspected object on the map and must read without opening any panel.
+  for (const city of Object.values(state.cities)) {
+    const t = state.map.tiles[city.tileId];
+    const isHuman = city.ownerId === humanId;
+    if (!isHuman && !visible.has(city.tileId)) continue;
+    const color = content.civs[state.players[city.ownerId]?.civId ?? '']?.color ?? '#ffffff';
+    const pos = tileToPixel(t.q, t.r, s);
+    const banner = this.makeCityBanner(state, content, city, color, isHuman);
+    banner.position.set(pos.x, pos.y - s * 0.6);
+    this.cityLayer.addChild(banner);
+  }
+}
+
+/**
+ * Banner plate for one city: parchment serif text on a plate ground with a
+ * civ-colored rim (echoes the token + seal frames). `eta` line is human-only:
+ * current build with a turns-to-go estimate, or an idle blocker.
+ */
+private makeCityBanner(
+  state: GameState,
+  content: ContentDb,
+  city: GameState['cities'][number],
+  color: string,
+  isHuman: boolean,
+): Container {
+  const box = new Container();
+  const style = {
+    fontFamily: 'Georgia, "Times New Roman", serif',
+    fill: PALETTE.parchment,
+    letterSpacing: 0.5,
+  };
+  const name = new Text({ text: `${city.name} · ${city.population}`, style: { ...style, fontSize: 12 } });
+  name.anchor.set(0.5, 0.5);
+
+  let eta: Text | null = null;
+  if (isHuman) {
+    const item = city.productionQueue[0];
+    if (item) {
+      const def = item.kind === 'unit' ? content.units[item.id] : content.buildings[item.id];
+      const perTurn = computeCityYields(state, city).production;
+      const left = Math.max(0, (def?.cost ?? 0) - city.productionStored);
+      const turns = perTurn > 0 ? Math.ceil(left / perTurn) : Infinity;
+      eta = new Text({
+        text: `${def?.name ?? item.id} · ${Number.isFinite(turns) ? `${turns}t` : 'stalled'}`,
+        style: { ...style, fontSize: 10, fill: PALETTE.parchmentDark },
+      });
+    } else {
+      eta = new Text({
+        text: 'idle — pick production',
+        style: { ...style, fontSize: 10, fill: PALETTE.goldAccent },
+      });
+    }
+    eta.anchor.set(0.5, 0.5);
+    eta.position.set(0, 9);
+  }
+
+  const g = new Graphics();
+  const w = Math.max(name.width, eta?.width ?? 0) + 16;
+  const h = eta ? 33 : 20;
+  name.position.set(0, eta ? -7 : 0);
+  g.roundRect(-w / 2, -h / 2, w, h, 5);
+  g.fill({ color: PALETTE.plate, alpha: 0.92 });
+  g.stroke({ width: 1.5, color, alpha: 0.95 });
+  box.addChild(g);
+  box.addChild(name);
+  if (eta) box.addChild(eta);
+  return box;
 }
 
 /** Tile id in direction d from tileId, or -1. */
@@ -496,9 +580,48 @@ setRangeOverlay(reachNow: Iterable<number> | null, reachNext?: Iterable<number>)
   this.overlayLayer.addChild(g);
 }
 
+  /**
+   * P2.1 lens overlay: paint precomputed tile buckets (tints/highlights in
+   * the setRangeOverlay style). Buckets are computed once per activation by
+   * the caller — never per frame. Null/empty clears.
+   */
+  setLensOverlay(buckets: LensBucket[] | null): void {
+    if (this.disposed) return;
+    if (this.lensOverlay) {
+      this.lensOverlay.destroy();
+      this.lensOverlay = null;
+    }
+    const list = buckets ?? [];
+    if (list.length === 0) return;
+    const pts = hexCornerPoints(HEX_SIZE * 0.95);
+    const g = new Graphics();
+    for (const bucket of list) {
+      for (const id of bucket.tileIds) {
+        const t = this.mapTiles[id];
+        if (!t) continue;
+        const pos = tileToPixel(t.q, t.r, HEX_SIZE);
+        const abs: number[] = [];
+        for (let i = 0; i < pts.length; i += 2) abs.push(pos.x + pts[i], pos.y + pts[i + 1]);
+        g.poly(abs);
+        g.fill({ color: bucket.color, alpha: bucket.alpha });
+      }
+    }
+    this.lensOverlay = g;
+    this.overlayLayer.addChild(g);
+  }
+
   destroy(): void {
     this.disposed = true;
     this.app.destroy(true);
+  }
+
+  /** Render-loop hook for HUD widgets that must track the camera (minimap viewport rect). */
+  addTickCallback(cb: () => void): void {
+    this.app.ticker.add(cb);
+  }
+
+  removeTickCallback(cb: () => void): void {
+    this.app.ticker.remove(cb);
   }
 }
 

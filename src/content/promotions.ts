@@ -5,5 +5,5 @@ export const PROMOTIONS: PromotionDef[] = [
   { id: 'shock', name: 'Shock', description: '+3 combat strength', strengthBonus: 3 },
   { id: 'drill', name: 'Drill', description: '+3 combat strength', strengthBonus: 3 },
   { id: 'march_heir', name: 'Veteran', description: '+3 combat strength', strengthBonus: 3 },
-  { id: 'siege', name: 'Siege', description: '+3 vs city center', strengthBonus: 3 },
+  { id: 'siege', name: 'Siege', description: '+3 combat strength (flat, incl. vs cities)', strengthBonus: 3 },
 ];

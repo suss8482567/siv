@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Marble">
-  <title>Marble — fluted column drum</title>
+  <title>Marble</title>
   <!-- Gilded Hex Seal frame (canonical, see docs/ART_STYLE.md) -->
   <polygon points="32,2 58,17 58,47 32,62 6,47 6,17" fill="#1D1A14" stroke="#C8A24A" stroke-width="2" stroke-linejoin="round"/>
   <polygon points="32,5.5 55,18.75 55,45.25 32,58.5 9,45.25 9,18.75" fill="none" stroke="#3A3325" stroke-width="1"/>

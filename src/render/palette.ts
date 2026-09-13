@@ -6,6 +6,8 @@ export const PALETTE = {
   parchment: '#e8dcc0',
   parchmentDark: '#cfc0a0',
   ink: '#2a2418',
+  /** Seal plate ground (mirrors the docs/ART_STYLE.md `plate` art token) for map tokens. */
+  plate: '#1d1a14',
   panelBg: 'rgba(29, 26, 20, 0.92)',
   panelBorder: '#3a3325',
   goldAccent: '#c8a24a',

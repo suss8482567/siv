@@ -16,6 +16,8 @@ import { MapRenderer, HEX_SIZE, type FogData } from '@/render/MapRenderer';
 import { buildContentDb } from '@/content';
 import { InputController } from '@/input/InputController';
 import { pushNotification, returnToMenu, selectionSignal, sessionSignal, submitCommand } from '../store';
+import { suggestLensForUnitType } from '../hud/LensBar';
+import { closeHelp, helpOpen } from '../help';
 import { TopBar } from '../hud/TopBar';
 import { RightDock } from '../hud/RightDock';
 import { UnitDock } from '../hud/UnitDock';
@@ -24,9 +26,12 @@ import { DevPanel, devPanelOpen } from '../hud/DevPanel';
 import { EscapeMenu, closeEscapeMenu, escapeMenuOpen, openEscapeMenu } from '../hud/EscapeMenu';
 import { SavePanel, closeSavePanel, openSavePanel, savePanelOpen } from '../hud/SavePanel';
 import { Notifications } from '../hud/Notifications';
+import { AttentionBadge } from '../hud/AttentionBadge';
 import { CityScreen } from './CityScreen';
 import { TechTree, closeTechTree, techTreeOpen } from './TechTree';
 import { DiplomacyPanel, closeDiplomacy, diplomacyOpen } from './DiplomacyPanel';
+import { EmpireOverview, closeEmpire, empireOpen } from './EmpireOverview';
+import { HelpOverlay } from './HelpOverlay';
 import { VictoryScreen } from './VictoryScreen';
 
 function fogFor(state: GameState): FogData {
@@ -110,11 +115,28 @@ export function GameShell() {
       } else if (e.key === 'Escape') {
         e.preventDefault();
         handleEscapeKey();
+      } else if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        orderSelectedUnit(s.state, 'fortify');
+      } else if (e.key === 's' || e.key === 'S') {
+        e.preventDefault();
+        orderSelectedUnit(s.state, 'sleep');
+      } else if (e.key === 'w' || e.key === 'W') {
+        e.preventDefault();
+        orderSelectedUnit(s.state, 'wake');
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  // Settler selection auto-suggests the Settle lens (vacancy-only, never yanks).
+  const selForLens = selectionSignal.value;
+  useEffect(() => {
+    const s = sessionSignal.peek();
+    const unit = selForLens.unitId != null ? s?.state.units[selForLens.unitId] : undefined;
+    suggestLensForUnitType(unit?.typeId);
+  }, [selForLens]);
 
   if (!session) return null;
 
@@ -127,6 +149,8 @@ export function GameShell() {
       <CityScreen />
       <TechTree />
       <DiplomacyPanel />
+      <EmpireOverview />
+      <HelpOverlay />
       <VictoryScreen />
       {savePanelOpen.value && <SavePanel onClose={() => closeSavePanel()} />}
       <EscapeMenu />
@@ -134,6 +158,7 @@ export function GameShell() {
       <TileTooltip />
       <Notifications />
       <div class="endturn-wrap">
+        <AttentionBadge />
         <button class="btn-primary" data-testid="end-turn" onClick={() => submitCommand({ type: 'endTurn' })}>
           End Turn
         </button>
@@ -205,6 +230,24 @@ function handleTileClick(tileId: number): void {
   }
 }
 
+type UnitOrderKey = 'fortify' | 'sleep' | 'wake';
+
+/** F/S/W dock hotkeys: apply the matching order to the selected own unit. */
+function orderSelectedUnit(s: GameState, order: UnitOrderKey): void {
+  const { unitId } = selectionSignal.peek();
+  const unit = unitId != null ? s.units[unitId] : undefined;
+  if (!unit || unit.ownerId !== currentPlayer(s).id) return;
+  const def = buildContentDb().units[unit.typeId];
+  const military = !!def && def.unitClass !== 'civilian';
+  if (order === 'fortify' && military && !unit.fortified) {
+    submitCommand({ type: 'fortify', unitId: unit.id });
+  } else if (order === 'sleep' && !unit.slept) {
+    submitCommand({ type: 'sleep', unitId: unit.id });
+  } else if (order === 'wake' && (unit.fortified || unit.slept)) {
+    submitCommand({ type: 'wake', unitId: unit.id });
+  }
+}
+
 /** RMB: attack enemies in range, else move toward the tile along a path. */
 function handleTileRightClick(tileId: number): void {
   const s = sessionSignal.peek();
@@ -270,6 +313,10 @@ function cycleNextUnit(): void {
 
 /** Esc: close the topmost open modal, else open the pause menu. */
 function handleEscapeKey(): void {
+  if (helpOpen.value) {
+    closeHelp();
+    return;
+  }
   if (escapeMenuOpen.value) {
     closeEscapeMenu();
     return;
@@ -288,6 +335,10 @@ function handleEscapeKey(): void {
   }
   if (diplomacyOpen.value) {
     closeDiplomacy();
+    return;
+  }
+  if (empireOpen.value) {
+    closeEmpire();
     return;
   }
   const sel = selectionSignal.peek();

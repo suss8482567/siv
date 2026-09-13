@@ -110,7 +110,7 @@ export function DevPanel() {
         title="Toggle dev tools (`)"
         onClick={() => (devPanelOpen.value = !devPanelOpen.value)}
       >
-        🛠 Dev
+        Dev
       </button>
       {!devPanelOpen.value ? null : (
         <div class="dev-panel" data-testid="dev-panel">
@@ -134,7 +134,7 @@ export function DevPanel() {
                 .sort((a, b) => a.name.localeCompare(b.name))
                 .map((u) => (
                   <option key={u.id} value={u.id}>
-                    {u.name} ({Math.round(u.strength || u.rangedStrength)}⚔ {u.moves}↻)
+                    {u.name} ({Math.round(u.strength || u.rangedStrength)} str · {u.moves} MP)
                   </option>
                 ))}
             </select>

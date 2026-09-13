@@ -2,6 +2,8 @@ import { useEffect, useState } from 'preact/hooks';
 import type { MapPresetId } from '@/engine';
 import { MAP_SIZES } from '@/engine';
 import { buildContentDb } from '@/content';
+import { civArt } from '@/assets/art';
+import { ArtIcon } from '../hud/ArtIcon';
 import { getSave, validateSaveFile } from '@/save/persistence';
 import { loadFromSave, startNewGame } from '../store';
 
@@ -13,6 +15,19 @@ const PRESETS: { id: MapPresetId; label: string }[] = [
 ];
 
 const DIFFICULTIES = ['Peaceful', 'Standard', 'Hard', 'Brutal'];
+// SPEC mirrors: AI yield multiplier and AI non-civilian strength bonus per level.
+const DIFFICULTY_EFFECTS = [
+  'AI plays fair — no bonuses',
+  'AI yields ×1.10, strength +1',
+  'AI yields ×1.20, strength +2',
+  'AI yields ×1.35, strength +3',
+];
+const PRESET_BLURBS: Record<MapPresetId, string> = {
+  pangaea: 'one supercontinent — crowded land war',
+  continents: 'several landmasses with ocean between',
+  archipelago: 'island chains — water is impassable, no embark',
+  fractal: 'unpredictable jagged landmasses',
+};
 
 export function MainMenu() {
   const content = buildContentDb();
@@ -44,7 +59,7 @@ export function MainMenu() {
   return (
     <div class="menu-screen">
       <h1 class="menu-title">SIV</h1>
-      <p class="menu-sub">a web-born 4X — v0</p>
+      <p class="menu-sub">a web-born 4X — v0.0</p>
       <div class="menu-panel">
         {autosaveMeta && (
           <button
@@ -59,7 +74,7 @@ export function MainMenu() {
             Continue — {autosaveMeta.civName}, turn {autosaveMeta.turn}
           </button>
         )}
-        <label>
+        <label title={PRESET_BLURBS[preset]}>
           <span>Map</span>
           <select value={preset} onChange={(e) => setPreset(e.currentTarget.value as MapPresetId)}>
             {PRESETS.map((p) => (
@@ -67,6 +82,7 @@ export function MainMenu() {
             ))}
           </select>
         </label>
+        <small class="menu-hint">{PRESET_BLURBS[preset]}</small>
         <label>
           <span>Size</span>
           <select value={sizeId} onChange={(e) => setSizeId(e.currentTarget.value)}>
@@ -83,6 +99,17 @@ export function MainMenu() {
             ))}
           </select>
         </label>
+        <div class="menu-civ-preview">
+          <ArtIcon art={civArt(civId)} size={56} label={content.civs[civId].name} />
+          <div class="menu-civ-who">
+            <strong style={{ color: content.civs[civId].color }}>
+              {content.civs[civId].name} — {content.civs[civId].leaderName}
+            </strong>
+            <small title={content.civs[civId].traitDescription}>
+              {content.civs[civId].traitName}: {content.civs[civId].traitDescription}
+            </small>
+          </div>
+        </div>
         <label>
           <span>AI rivals</span>
           <select value={aiCount} onChange={(e) => setAiCount(Number(e.currentTarget.value))}>
@@ -91,7 +118,7 @@ export function MainMenu() {
             ))}
           </select>
         </label>
-        <label>
+        <label title={DIFFICULTY_EFFECTS[difficulty]}>
           <span>Difficulty</span>
           <select value={difficulty} onChange={(e) => setDifficulty(Number(e.currentTarget.value))}>
             {DIFFICULTIES.map((d, i) => (
@@ -99,6 +126,7 @@ export function MainMenu() {
             ))}
           </select>
         </label>
+        <small class="menu-hint">{DIFFICULTY_EFFECTS[difficulty]}</small>
         <label>
           <span>Seed</span>
           <input
